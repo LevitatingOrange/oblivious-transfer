@@ -1,0 +1,14 @@
+[package]
+name = "oblivious-transfer"
+version = "0.1.0"
+authors = ["Lennart Vogelsang <dev@vogelsangs.net>"]
+
+[lib]
+name = "ot"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ot_test_bin"
+path = "src/bin.rs"
+
+[dependencies]
