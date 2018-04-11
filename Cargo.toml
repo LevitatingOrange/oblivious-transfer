@@ -12,3 +12,5 @@ name = "ot_test_bin"
 path = "src/bin.rs"
 
 [dependencies]
+curve25519-dalek = "^0.16"
+rand = "0.5.0-pre.0"

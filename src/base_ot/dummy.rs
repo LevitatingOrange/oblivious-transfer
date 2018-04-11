@@ -2,6 +2,8 @@ use std::io::prelude::*;
 use std::mem;
 use std::io;
 
+/// A simple dummy oblivious transfer routine, 1-to-n, of values of type i64. No security whatsoever.
+/// Implemented as a baseline for the secure protocols.
 pub struct DummyOT<T: Read + Write> {
     conn: T
 }
@@ -28,8 +30,7 @@ fn recv_int<T: Read>(conn: &mut T) -> Result<(u64), io::Error> {
     })
 }
 
-/// A simple dummy oblivious transfer routine, 1-to-n, of values of type i64. No security whatsoever.
-impl <T: Read + Write> super::BaseOT<i64> for DummyOT<T> {
+impl <T: Read + Write> super::BaseOTSender<i64> for DummyOT<T> {
     fn send(&mut self, values: Vec<i64>) -> Result<(), super::Error> {
         let index = recv_int(&mut self.conn)?;
         if (index as usize) >= values.len() {
@@ -38,6 +39,8 @@ impl <T: Read + Write> super::BaseOT<i64> for DummyOT<T> {
         send_int(values[index as usize] as u64, &mut self.conn)?;
         Ok(())
     }
+}
+impl <T: Read + Write> super::BaseOTReceiver<i64> for DummyOT<T> {
     fn receive(&mut self, index: u64) -> Result<i64, super::Error> {
         send_int(index, &mut self.conn)?;
         let result = recv_int(&mut self.conn)? as i64;

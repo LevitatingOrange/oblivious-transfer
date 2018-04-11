@@ -4,6 +4,7 @@ use std::fmt;
 use std::io;
 
 pub mod dummy;
+pub mod chou;
 
 #[derive(Debug)]
 pub enum Error {
@@ -37,7 +38,10 @@ impl From<io::Error> for Error {
 
 
 
-pub trait BaseOT<T> {
+pub trait BaseOTSender<T> {
     fn send(&mut self, values: Vec<T>) -> Result<(), Error>;
+}
+
+pub trait BaseOTReceiver<T> {
     fn receive(&mut self, index: u64) -> Result<T, Error>;   
 }
