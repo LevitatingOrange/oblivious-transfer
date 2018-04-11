@@ -8,6 +8,7 @@ pub mod chou;
 
 #[derive(Debug)]
 pub enum Error {
+    PointError, 
     Connection(io::Error),
     IndexOutOfRange
 }
@@ -15,6 +16,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Error::PointError => write!(f, "received point is invalid"),
             Error::Connection(ref e) => e.fmt(f),
             Error::IndexOutOfRange => write!(f, "index out of range")
         }
@@ -24,6 +26,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::PointError => "This is caused by corrupted communication channel",
             Error::Connection(ref e) => e.description(),
             Error::IndexOutOfRange => "The selected index is out of bounds"
         }
