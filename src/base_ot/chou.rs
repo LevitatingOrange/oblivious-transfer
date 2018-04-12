@@ -14,8 +14,8 @@ use digest::generic_array::{GenericArray, ArrayLength};
 pub struct ChouOrlandiOTSender<T: Read + Write> {
     conn: T,
     y: Scalar,
-    t: EdwardsPoint,
-    s: EdwardsPoint
+    t64: EdwardsPoint,
+    s8: EdwardsPoint
 }
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error> where T: Read {
@@ -39,22 +39,21 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         // also look at compute_keys' use of y
         // y *= eight;
         s = s.mul_by_cofactor();
-        Ok(ChouOrlandiOTSender {conn: conn, y: y, t: (y * s).mul_by_cofactor(), s: s})
+        Ok(ChouOrlandiOTSender {conn: conn, y: y, t64: (y * s).mul_by_cofactor(), s8: s})
     }
     
     fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<Vec<GenericArray<u8, E>>, super::Error> where 
     D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
-        let mut r = receive_point(&mut self.conn)?;
+        let r = receive_point(&mut self.conn)?.mul_by_cofactor();
         // see ChouOrlandiOTReceiver::new for a discussion for why this is needed
-        r = r.mul_by_cofactor();
         // seed the hash function with s and r in its compressed form
-        hasher.input(self.s.compress().as_bytes());
+        hasher.input(self.s8.compress().as_bytes());
         hasher.input(r.compress().as_bytes());
         Ok((0..n).map(|j| {
-            // hash p=yR - jT, this will reduce to xS if y == j, but as x is only known 
+            // hash p=64yR - 64jT, this will reduce to 64xS if y == j, but as x is only known 
             // to the receiver (provided the discrete logartihm problem is hard in our curve)
             // the sender does not know which p is the correct one (i.e. the one the receiver owns).
-            let p = self.y * r - Scalar::from_u64(j) * self.t;
+            let p = self.y * r - Scalar::from_u64(j) * self.t64;
             let mut hasher = hasher.clone();
             hasher.input(p.compress().as_bytes());
             hasher.result()
@@ -65,7 +64,7 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
 pub struct ChouOrlandiOTReceiver<T: Read + Write, R: Rng> {
     conn: T,
     rng: R,
-    s: EdwardsPoint
+    s8: EdwardsPoint
 }
 
 
@@ -79,19 +78,25 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         // of our 25519 twisted edwards curve [TODO: Cite]
         s = s.mul_by_cofactor();
 
-        Ok(ChouOrlandiOTReceiver {conn: conn, rng: rng, s: s})
+        Ok(ChouOrlandiOTReceiver {conn: conn, rng: rng, s8: s})
     }
 
-    fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
+    fn compute_key<D, E>(&mut self, c: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
     D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
-        let mut r = receive_point(&mut self.conn)?;
-        // see ChouOrlandiOTReceiver::new for a discussion for why this is needed
-        r = r.mul_by_cofactor();
-        // seed the hash function with s and r in its compressed form
+        // TODO use algorithmic random gen?
+        let x = Scalar::random(&mut self.rng);
+        let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
+        self.conn.write(r.compress().as_bytes())?;
+        // seed the hash function with s and r in it's compressed form
 
-        hasher.input(self.s.compress().as_bytes());
+        hasher.input(self.s8.compress().as_bytes());
         hasher.input(r.compress().as_bytes());
-        unimplemented!()
+
+        // hash p = 64xS
+        // TODO: is it better use mul_by_cofactor?
+        let p = (x * Scalar::from_u64(8)) * self.s8;
+        hasher.input(p.compress().as_bytes());
+        Ok(hasher.result())
     }
 }
 
