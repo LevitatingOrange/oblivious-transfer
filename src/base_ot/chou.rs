@@ -109,7 +109,6 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
-    use digest::Digest;
 
     // TODO test for vuln mentioned in paper
 
@@ -128,5 +127,26 @@ mod tests {
         let hash_receiver = client.join().unwrap();
 
         assert_eq!(hashes_sender[index as usize], hash_receiver);
+    }
+
+    #[test]
+    fn chou_ot_key_exchange_multiple() {
+        static indices: [u64; 5] = [5, 0, 9, 3, 7];
+
+        let server = thread::spawn(move || {
+            let mut ot = ChouOrlandiOTSender::new(TcpListener::bind("127.0.0.1:1237").unwrap().accept().unwrap().0, &mut OsRng::new().unwrap()).unwrap();
+            indices.iter().map(move |i| ot.compute_keys(10, Sha3_256::default()).unwrap()[*i as usize]).collect()
+        });
+        let client = thread::spawn(move || {
+            let mut ot = ChouOrlandiOTReceiver::new(TcpStream::connect("127.0.0.1:1237").unwrap(), OsRng::new().unwrap()).unwrap();
+            indices.iter().map(move |i| ot.compute_key(*i, Sha3_256::default()).unwrap()).collect()
+        });
+        
+        let hashes_sender:Vec<_> = server.join().unwrap();
+        let hashes_receiver:Vec<_> = client.join().unwrap();
+
+        for (send_hash, recv_hash) in hashes_sender.iter().zip(hashes_receiver.iter()) {
+            assert_eq!(send_hash, recv_hash);
+        }
     } 
 }
