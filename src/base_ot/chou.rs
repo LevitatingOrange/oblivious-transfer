@@ -86,8 +86,8 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
         self.conn.write((r + EIGHT_TORSION[1]).compress().as_bytes())?;
+        
         // seed the hash function with s and r in it's compressed form
-
         hasher.input(self.s8.compress().as_bytes());
         hasher.input(r.mul_by_cofactor().compress().as_bytes());
 
