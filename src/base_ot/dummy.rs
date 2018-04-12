@@ -52,7 +52,8 @@ impl <T: Read + Write> super::BaseOTReceiver<i64> for DummyOT<T> {
 #[cfg(test)]
 mod tests {
     use super::DummyOT;
-    use ::base_ot::BaseOT;
+    use ::base_ot::BaseOTSender;
+    use ::base_ot::BaseOTReceiver;
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::thread;

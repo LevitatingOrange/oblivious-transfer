@@ -2,7 +2,7 @@
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 
 use std::io::prelude::*;
-use rand::{OsRng, Rng};
+use rand::Rng;
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
@@ -26,7 +26,7 @@ fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error> where T:
 
 
 impl <T: Read + Write> ChouOrlandiOTSender <T> {
-    fn new<R>(mut conn: T, rng: &mut R) -> Result<Self, super::Error> where R:Rng {
+    pub fn new<R>(mut conn: T, rng: &mut R) -> Result<Self, super::Error> where R:Rng {
         let y = Scalar::random(rng);
         let mut s = &y * &ED25519_BASEPOINT_TABLE;
 
@@ -42,7 +42,7 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         Ok(ChouOrlandiOTSender {conn: conn, y: y, t64: (y * s).mul_by_cofactor(), s8: s})
     }
     
-    fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<Vec<GenericArray<u8, E>>, super::Error> where 
+    pub fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<Vec<GenericArray<u8, E>>, super::Error> where 
     D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
         let r = receive_point(&mut self.conn)?.mul_by_cofactor();
         // see ChouOrlandiOTReceiver::new for a discussion for why this is needed
@@ -69,7 +69,7 @@ pub struct ChouOrlandiOTReceiver<T: Read + Write, R: Rng> {
 
 
 impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
-    fn new(mut conn: T, rng: R) -> Result<Self, super::Error> {
+    pub fn new(mut conn: T, rng: R) -> Result<Self, super::Error> {
         let mut s = receive_point(&mut conn)?;
 
         // as we've added a point from the eight torsion subgroup to s before sending, 
@@ -81,7 +81,7 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         Ok(ChouOrlandiOTReceiver {conn: conn, rng: rng, s8: s})
     }
 
-    fn compute_key<D, E>(&mut self, c: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
+    pub fn compute_key<D, E>(&mut self, c: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
     D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
         // TODO use algorithmic random gen?
         let x = Scalar::random(&mut self.rng);
@@ -102,3 +102,20 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
 
 
 
+#[cfg(test)]
+mod tests {
+    use rand::OsRng;
+    use super::*;
+    use std::net::TcpListener;
+    use std::net::TcpStream;
+    use std::thread;
+    use sha3::Sha3_256;
+    use digest::Digest;
+
+    // TODO test for vuln mentioned in paper
+
+    #[test]
+    fn chou_ot_key_exchange() {
+
+    } 
+}
