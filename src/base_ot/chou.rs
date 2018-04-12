@@ -8,14 +8,14 @@ use curve25519_dalek::scalar::*;
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use std::vec::Vec;
 use digest::Digest;
-use digest::generic_array::GenericArray;
+use digest::generic_array::{GenericArray, ArrayLength};
 
 
 pub struct ChouOrlandiOTSender<T: Read + Write> {
     conn: T,
     y: Scalar,
     t: EdwardsPoint,
-    s: CompressedEdwardsY
+    s: EdwardsPoint
 }
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error> where T: Read {
@@ -35,20 +35,22 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         // 25519 of Bernstein et al. [TODO: CITE]
         conn.write((s + EIGHT_TORSION[0]).compress().as_bytes())?;
         // see ChouOrlandiOTReceiver::new for discussion of why to multiply by the cofactor (i.e. 8)
-        // do we need this? and if, then we can't use *= !!!
+        // FIXME: do we need this? and if, then we can't use *= !!!
+        // also look at compute_keys' use of y
         // y *= eight;
         s = s.mul_by_cofactor();
-        Ok(ChouOrlandiOTSender {conn: conn, y: y, t: (y * s).mul_by_cofactor(), s: s.compress()})
+        Ok(ChouOrlandiOTSender {conn: conn, y: y, t: (y * s).mul_by_cofactor(), s: s})
     }
     
-    fn compute_keys<D>(&mut self, n: u64, mut hasher: D) -> Result<(), super::Error> where D: Digest + Clone {
+    fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<Vec<GenericArray<u8, E>>, super::Error> where 
+    D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
         let mut r = receive_point(&mut self.conn)?;
         // see ChouOrlandiOTReceiver::new for a discussion for why this is needed
         r = r.mul_by_cofactor();
         // seed the hash function with s and r in its compressed form
-        hasher.input(self.s.as_bytes());
+        hasher.input(self.s.compress().as_bytes());
         hasher.input(r.compress().as_bytes());
-        (0..n).map(|j| {
+        Ok((0..n).map(|j| {
             // hash p=yR - jT, this will reduce to xS if y == j, but as x is only known 
             // to the receiver (provided the discrete logartihm problem is hard in our curve)
             // the sender does not know which p is the correct one (i.e. the one the receiver owns).
@@ -56,8 +58,7 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
             let mut hasher = hasher.clone();
             hasher.input(p.compress().as_bytes());
             hasher.result()
-        });
-        Ok(())
+        }).collect())
     }
 }
 
@@ -79,6 +80,18 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         s = s.mul_by_cofactor();
 
         Ok(ChouOrlandiOTReceiver {conn: conn, rng: rng, s: s})
+    }
+
+    fn compute_keys<D, E>(&mut self, n: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
+    D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
+        let mut r = receive_point(&mut self.conn)?;
+        // see ChouOrlandiOTReceiver::new for a discussion for why this is needed
+        r = r.mul_by_cofactor();
+        // seed the hash function with s and r in its compressed form
+
+        hasher.input(self.s.compress().as_bytes());
+        hasher.input(r.compress().as_bytes());
+        unimplemented!()
     }
 }
 
