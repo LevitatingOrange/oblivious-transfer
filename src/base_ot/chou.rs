@@ -33,7 +33,7 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         // we dont send s directly, instead we add a point from the eight torsion subgroup.
         // This enables the receiver to verify that s is in the subgroup of the twisted edwards curve 
         // 25519 of Bernstein et al. [TODO: CITE]
-        conn.write((s + EIGHT_TORSION[0]).compress().as_bytes())?;
+        conn.write((s + EIGHT_TORSION[1]).compress().as_bytes())?;
         // see ChouOrlandiOTReceiver::new for discussion of why to multiply by the cofactor (i.e. 8)
         // FIXME: do we need this? and if, then we can't use *= !!!
         // also look at compute_keys' use of y
@@ -83,14 +83,13 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
 
     pub fn compute_key<D, E>(&mut self, c: u64, mut hasher: D) -> Result<GenericArray<u8, E>, super::Error> where 
     D: Digest<OutputSize = E> + Clone, E: ArrayLength<u8> {
-        // TODO use algorithmic random gen?
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
-        self.conn.write(r.compress().as_bytes())?;
+        self.conn.write((r + EIGHT_TORSION[1]).compress().as_bytes())?;
         // seed the hash function with s and r in it's compressed form
 
         hasher.input(self.s8.compress().as_bytes());
-        hasher.input(r.compress().as_bytes());
+        hasher.input(r.mul_by_cofactor().compress().as_bytes());
 
         // hash p = 64xS
         // TODO: is it better use mul_by_cofactor?
@@ -116,6 +115,18 @@ mod tests {
 
     #[test]
     fn chou_ot_key_exchange() {
+        let index = 3;
+        let server = thread::spawn(move || {
+            let mut ot = ChouOrlandiOTSender::new(TcpListener::bind("127.0.0.1:1236").unwrap().accept().unwrap().0, &mut OsRng::new().unwrap()).unwrap();
+            ot.compute_keys(10, Sha3_256::default()).unwrap()
+        });
+        let client = thread::spawn(move || {
+            let mut ot = ChouOrlandiOTReceiver::new(TcpStream::connect("127.0.0.1:1236").unwrap(), OsRng::new().unwrap()).unwrap();
+            ot.compute_key(index, Sha3_256::default()).unwrap()
+        });
+        let hashes_sender = server.join().unwrap();
+        let hash_receiver = client.join().unwrap();
 
+        assert_eq!(hashes_sender[index as usize], hash_receiver);
     } 
 }

@@ -12,7 +12,9 @@ name = "ot_test_bin"
 path = "src/bin.rs"
 
 [dependencies]
-curve25519-dalek = "^0.16"
+#TODO: nightly for faster field elements
+#curve25519-dalek = {version = "^0.16", features = ["nightly", "yolocrypto"]}
+curve25519-dalek = {version = "^0.16"}
 rand = "0.4"
 digest = "0.7.2"
 sha3 = "0.7.3"
