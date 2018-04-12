@@ -4,6 +4,7 @@ extern crate sha3;
 extern crate rand;
 
 use rand::OsRng;
+use ot::communication::corrupted::CorruptedChannel;
 use ot::base_ot::chou::*;
 use std::net::TcpListener;
 use std::net::TcpStream;

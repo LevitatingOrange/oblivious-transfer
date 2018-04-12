@@ -19,7 +19,7 @@ pub struct ChouOrlandiOTSender<T: Read + Write> {
 }
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error> where T: Read {
-    let mut buf: [u8; 32] = [0; 32];
+    let mut buf: [u8; 32] = Default::default();
     conn.read_exact(&mut buf)?;
     CompressedEdwardsY(buf).decompress().ok_or(super::Error::PointError)
 }
@@ -110,6 +110,7 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
+    use curve25519_dalek::edwards::{EdwardsPoint, CompressedEdwardsY};
 
     // TODO test for vuln mentioned in paper
 
@@ -138,6 +139,7 @@ mod tests {
             let mut ot = ChouOrlandiOTSender::new(TcpListener::bind("127.0.0.1:1237").unwrap().accept().unwrap().0, &mut OsRng::new().unwrap()).unwrap();
             indices.iter().map(move |i| ot.compute_keys(10, Sha3_256::default()).unwrap()[*i as usize]).collect()
         });
+
         let client = thread::spawn(move || {
             let mut ot = ChouOrlandiOTReceiver::new(TcpStream::connect("127.0.0.1:1237").unwrap(), OsRng::new().unwrap()).unwrap();
             indices.iter().map(move |i| ot.compute_key(*i, Sha3_256::default()).unwrap()).collect()
@@ -150,4 +152,34 @@ mod tests {
             assert_eq!(send_hash, recv_hash);
         }
     } 
+
+    #[test]
+    fn chou_ot_key_exchange_c0() {
+        // given c == 0 and a poor implementation an attacker can infer that c is 0 given the transmitted R 
+        let server = thread::spawn(move || {
+            let mut ot = ChouOrlandiOTSender::new(TcpListener::bind("127.0.0.1:1238").unwrap().accept().unwrap().0, &mut OsRng::new().unwrap()).unwrap();
+            ot.compute_keys(10, Sha3_256::default()).unwrap()
+        });
+
+        // if the transmitted R is wrongly calculated (i.e. c*t + R, where t is a torsion free point, 
+        // see ChouOrlandiOTReceiver::new for why we add this Torsion free point), then the point is torsion free
+        // if c = 0 and an attacker can infer that c is indeed 0 
+
+        fn eavesdrop(_: &mut (), buf: &[u8]) {
+            let mut new_buf: [u8; 32] = Default::default();
+            new_buf.copy_from_slice(buf);
+            assert!(!CompressedEdwardsY(new_buf).decompress().unwrap().is_torsion_free())
+        }
+
+        let client = thread::spawn(move || {
+        let corrupted_channel = CorruptedChannel::new_eavesdrop(TcpStream::connect("127.0.0.1:1238").unwrap(), (), eavesdrop);
+            let mut ot = ChouOrlandiOTReceiver::new(corrupted_channel, OsRng::new().unwrap()).unwrap();
+            ot.compute_key(0, Sha3_256::default()).unwrap()
+        });
+        let hashes_sender = server.join().unwrap();
+        let hash_receiver = client.join().unwrap();
+
+        assert_eq!(hashes_sender[0], hash_receiver);
+    }
+
 }

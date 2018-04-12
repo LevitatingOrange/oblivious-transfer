@@ -5,7 +5,7 @@ extern crate sha3;
 //extern crate block_cipher_trait;
 
 pub mod base_ot;
-mod communication;
+pub mod communication;
 mod crypto;
 
 #[cfg(test)]

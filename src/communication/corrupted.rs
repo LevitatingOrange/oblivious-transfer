@@ -9,7 +9,7 @@ fn empty_eavesdropper<S>(_: &mut S, buf: &[u8])
 where S: Default {
 }
 
-struct CorruptedChannel<S: Default, C: Read + Write> {
+pub struct CorruptedChannel<S: Default, C: Read + Write> {
     pub state: S, 
     conn: C, 
     pub eavesdropper: fn(&mut S, &[u8]),
