@@ -22,11 +22,13 @@ impl <S: Default, C: Read + Write> CorruptedChannel<S, C> {
         CorruptedChannel {state: S::default(), conn: conn, eavesdropper: empty_eavesdropper, corruptor: empty_corruptor}
     }
     
+    /// Returns a CorruptedChannel which only eavesdrops
     pub fn new_eavesdrop(conn: C, initial_state: S, 
     eavesdropper: fn(&mut S, &[u8])) -> Self {
         CorruptedChannel {state: S::default(), conn: conn, eavesdropper: eavesdropper, corruptor: empty_corruptor}
     }
 
+    /// Returns a CorruptedChannel which only corrupts
     pub fn new_corrupt(conn: C, initial_state: S, 
     corruptor: fn(&mut S, &mut [u8])) -> Self {
         CorruptedChannel {state: S::default(), conn: conn, eavesdropper: empty_eavesdropper, corruptor: corruptor}

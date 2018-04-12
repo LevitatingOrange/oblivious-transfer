@@ -35,9 +35,6 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         // 25519 of Bernstein et al. [TODO: CITE]
         conn.write((s + EIGHT_TORSION[1]).compress().as_bytes())?;
         // see ChouOrlandiOTReceiver::new for discussion of why to multiply by the cofactor (i.e. 8)
-        // FIXME: do we need this? and if, then we can't use *= !!!
-        // also look at compute_keys' use of y
-        // y *= eight;
         s = s.mul_by_cofactor();
         Ok(ChouOrlandiOTSender {conn: conn, y: y, t64: (y * s).mul_by_cofactor(), s8: s})
     }
@@ -50,9 +47,9 @@ impl <T: Read + Write> ChouOrlandiOTSender <T> {
         hasher.input(self.s8.compress().as_bytes());
         hasher.input(r.compress().as_bytes());
         Ok((0..n).map(|j| {
-            // hash p=64yR - 64jT, this will reduce to 64xS if y == j, but as x is only known 
+            // hash p=64yR - 64jT, this will reduce to 64xS if c == j, but as x is only known 
             // to the receiver (provided the discrete logartihm problem is hard in our curve)
-            // the sender does not know which p is the correct one (i.e. the one the receiver owns).
+            // the sender does not know c.
             let p = self.y * r - Scalar::from_u64(j) * self.t64;
             let mut hasher = hasher.clone();
             hasher.input(p.compress().as_bytes());
@@ -92,7 +89,7 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         hasher.input(r.mul_by_cofactor().compress().as_bytes());
 
         // hash p = 64xS
-        // TODO: is it better use mul_by_cofactor?
+        // TODO: is it better to use mul_by_cofactor?
         let p = (x * Scalar::from_u64(8)) * self.s8;
         hasher.input(p.compress().as_bytes());
         Ok(hasher.result())
@@ -112,8 +109,6 @@ mod tests {
     use sha3::Sha3_256;
     use curve25519_dalek::edwards::{EdwardsPoint, CompressedEdwardsY};
 
-    // TODO test for vuln mentioned in paper
-
     #[test]
     fn chou_ot_key_exchange() {
         let index = 3;
@@ -128,7 +123,7 @@ mod tests {
         let hashes_sender = server.join().unwrap();
         let hash_receiver = client.join().unwrap();
 
-        assert_eq!(hashes_sender[index as usize], hash_receiver);
+        assert_eq!(hashes_sender[index as usize], hash_receiver)
     }
 
     #[test]
@@ -161,8 +156,8 @@ mod tests {
             ot.compute_keys(10, Sha3_256::default()).unwrap()
         });
 
-        // if the transmitted R is wrongly calculated (i.e. c*t + R, where t is a torsion free point, 
-        // see ChouOrlandiOTReceiver::new for why we add this Torsion free point), then the point is torsion free
+        // if the transmitted R is wrongly calculated (i.e. c*t + R, where t is an eight torsion point, 
+        // see ChouOrlandiOTReceiver::new for why we add this eight torsion point), then the point is torsion free
         // if c = 0 and an attacker can infer that c is indeed 0 
 
         fn eavesdrop(_: &mut (), buf: &[u8]) {
@@ -179,7 +174,7 @@ mod tests {
         let hashes_sender = server.join().unwrap();
         let hash_receiver = client.join().unwrap();
 
-        assert_eq!(hashes_sender[0], hash_receiver);
+        assert_eq!(hashes_sender[0], hash_receiver)
     }
 
 }
