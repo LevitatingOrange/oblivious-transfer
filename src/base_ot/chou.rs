@@ -24,6 +24,7 @@ fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error> where T:
     CompressedEdwardsY(buf).decompress().ok_or(super::Error::PointError)
 }
 
+// TODO: parallelize the protocol
 
 impl <T: Read + Write> ChouOrlandiOTSender <T> {
     pub fn new<R>(mut conn: T, rng: &mut R) -> Result<Self, super::Error> where R:Rng {
@@ -72,7 +73,8 @@ impl <T: Read + Write, R: Rng> ChouOrlandiOTReceiver <T, R> {
         // as we've added a point from the eight torsion subgroup to s before sending, 
         // by multiplying with the cofactor (i.e. 8, i.e. the order of the eight torsion subgroup)
         // we get [8]s and can be sure that the received value is indeed in the subgroup
-        // of our 25519 twisted edwards curve [TODO: Cite]
+        // of our 25519 twisted edwards curve. To avoid a costly division operation (by 8), we
+        // operate on 8 and later on 64 times our initial values. [TODO: Cite]
         s = s.mul_by_cofactor();
 
         Ok(ChouOrlandiOTReceiver {conn: conn, rng: rng, s8: s})

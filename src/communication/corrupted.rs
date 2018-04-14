@@ -2,10 +2,10 @@
 use std::io::prelude::*;
 use std::io;
 
-fn empty_corruptor<S>(_: &mut S, buf: &mut [u8])
+fn empty_corruptor<S>(_: &mut S, _: &mut [u8])
 where S: Default {
 }
-fn empty_eavesdropper<S>(_: &mut S, buf: &[u8])
+fn empty_eavesdropper<S>(_: &mut S, _: &[u8])
 where S: Default {
 }
 
@@ -25,18 +25,18 @@ impl <S: Default, C: Read + Write> CorruptedChannel<S, C> {
     /// Returns a CorruptedChannel which only eavesdrops
     pub fn new_eavesdrop(conn: C, initial_state: S, 
     eavesdropper: fn(&mut S, &[u8])) -> Self {
-        CorruptedChannel {state: S::default(), conn: conn, eavesdropper: eavesdropper, corruptor: empty_corruptor}
+        CorruptedChannel {state: initial_state, conn: conn, eavesdropper: eavesdropper, corruptor: empty_corruptor}
     }
 
     /// Returns a CorruptedChannel which only corrupts
     pub fn new_corrupt(conn: C, initial_state: S, 
     corruptor: fn(&mut S, &mut [u8])) -> Self {
-        CorruptedChannel {state: S::default(), conn: conn, eavesdropper: empty_eavesdropper, corruptor: corruptor}
+        CorruptedChannel {state: initial_state, conn: conn, eavesdropper: empty_eavesdropper, corruptor: corruptor}
     }
     
     pub fn new(conn: C, initial_state: S, 
     eavesdropper: fn(&mut S, &[u8]), corruptor: fn(&mut S, &mut [u8])) -> Self {
-        CorruptedChannel {state: S::default(), conn: conn, eavesdropper: eavesdropper, corruptor: corruptor}
+        CorruptedChannel {state: initial_state, conn: conn, eavesdropper: eavesdropper, corruptor: corruptor}
     }
 }
 
