@@ -8,11 +8,3 @@ extern crate sha3;
 pub mod base_ot;
 pub mod communication;
 pub mod crypto;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

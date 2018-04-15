@@ -183,8 +183,10 @@ impl<
 {
     fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, super::Error> {
         let key = self.compute_key(index)?;
-        println!("key: {:?}", key);
-        // TODO make this idiomatic
+        // TODO make this more idiomatic?
+        // at the moment this should prevent timing attacks
+        // by looking how long it takes the receiver to
+        // read a value
         let mut buf: Vec<u8> = Vec::with_capacity(l);
         buf.resize(l, 0);
         let mut _buf: Vec<u8> = Vec::with_capacity(l);
@@ -196,7 +198,6 @@ impl<
                 self.conn.read_exact(&mut _buf)?;
             }
         }
-        println!("buf: {:?}", buf);
         self.decryptor.decrypt(key, &mut buf);
         Ok(buf)
     }
@@ -206,12 +207,26 @@ impl<
 mod tests {
     use rand::OsRng;
     use super::*;
+    use base_ot::{BaseOTReceiver, BaseOTSender};
     use communication::corrupted::CorruptedChannel;
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
     use crypto::DummySymmetric;
+    use rand::{thread_rng, Rng};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    fn create_random_strings(n: usize, l: usize) -> Vec<String> {
+        let mut rng = thread_rng();
+        let mut values = Vec::with_capacity(n);
+        for _ in 0..n {
+            let s: String = rng.gen_ascii_chars().take(l).collect();
+            values.push(s);
+        }
+        values
+    }
 
     #[test]
     fn chou_ot_key_exchange() {
@@ -334,6 +349,47 @@ mod tests {
         let hash_receiver = client.join().unwrap();
 
         assert_eq!(hashes_sender[0], hash_receiver)
+    }
+
+    #[test]
+    fn test_communication_with_dummy_encryption() {
+        let n = 10;
+        let l = 512;
+        let c: u64 = 6;
+
+        let values = Arc::new(create_random_strings(n, l));
+        let vals = Arc::clone(&values);
+        let vals2 = Arc::clone(&values);
+
+        let server = thread::spawn(move || {
+            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
+
+            let mut ot = ChouOrlandiOTSender::new(
+                TcpListener::bind("127.0.0.1:1239")
+                    .unwrap()
+                    .accept()
+                    .unwrap()
+                    .0,
+                Sha3_256::default(),
+                DummySymmetric::default(),
+                &mut OsRng::new().unwrap(),
+            ).unwrap();
+            ot.send(vals).unwrap()
+        });
+        let client = thread::spawn(move || {
+            // TODO: make this better
+            thread::sleep(Duration::new(1, 0));
+            let mut ot = ChouOrlandiOTReceiver::new(
+                TcpStream::connect("127.0.0.1:1239").unwrap(),
+                Sha3_256::default(),
+                DummySymmetric::default(),
+                OsRng::new().unwrap(),
+            ).unwrap();
+            ot.receive(c, n, l).unwrap()
+        });
+        let _ = server.join().unwrap();
+        let result = String::from_utf8(client.join().unwrap()).unwrap();
+        assert_eq!(result, vals2[c as usize]);
     }
 
 }
