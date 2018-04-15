@@ -213,7 +213,7 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
-    use crypto::DummySymmetric;
+    use crypto::{DummyCryptoProvider, SodiumCryptoProvider};
     use rand::{thread_rng, Rng};
     use std::sync::Arc;
     use std::time::Duration;
@@ -239,7 +239,7 @@ mod tests {
                     .unwrap()
                     .0,
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
             ot.compute_keys(10).unwrap()
@@ -248,7 +248,7 @@ mod tests {
             let mut ot = ChouOrlandiOTReceiver::new(
                 TcpStream::connect("127.0.0.1:1236").unwrap(),
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
             ot.compute_key(index).unwrap()
@@ -271,7 +271,7 @@ mod tests {
                     .unwrap()
                     .0,
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
             INDICES
@@ -284,7 +284,7 @@ mod tests {
             let mut ot = ChouOrlandiOTReceiver::new(
                 TcpStream::connect("127.0.0.1:1237").unwrap(),
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
             INDICES
@@ -312,7 +312,7 @@ mod tests {
                     .unwrap()
                     .0,
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
             ot.compute_keys(10).unwrap()
@@ -340,7 +340,7 @@ mod tests {
             let mut ot = ChouOrlandiOTReceiver::new(
                 corrupted_channel,
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
             ot.compute_key(0).unwrap()
@@ -371,7 +371,7 @@ mod tests {
                     .unwrap()
                     .0,
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
             ot.send(vals).unwrap()
@@ -382,7 +382,48 @@ mod tests {
             let mut ot = ChouOrlandiOTReceiver::new(
                 TcpStream::connect("127.0.0.1:1239").unwrap(),
                 Sha3_256::default(),
-                DummySymmetric::default(),
+                DummyCryptoProvider::default(),
+                OsRng::new().unwrap(),
+            ).unwrap();
+            ot.receive(c, n, l).unwrap()
+        });
+        let _ = server.join().unwrap();
+        let result = String::from_utf8(client.join().unwrap()).unwrap();
+        assert_eq!(result, vals2[c as usize]);
+    }
+
+    #[test]
+    fn test_communication_with_sodium_encryption() {
+        let n = 10;
+        let l = 512;
+        let c: u64 = 6;
+
+        let values = Arc::new(create_random_strings(n, l));
+        let vals = Arc::clone(&values);
+        let vals2 = Arc::clone(&values);
+
+        let server = thread::spawn(move || {
+            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
+
+            let mut ot = ChouOrlandiOTSender::new(
+                TcpListener::bind("127.0.0.1:1240")
+                    .unwrap()
+                    .accept()
+                    .unwrap()
+                    .0,
+                Sha3_256::default(),
+                SodiumCryptoProvider::default(),
+                &mut OsRng::new().unwrap(),
+            ).unwrap();
+            ot.send(vals).unwrap()
+        });
+        let client = thread::spawn(move || {
+            // TODO: make this better
+            thread::sleep(Duration::new(1, 0));
+            let mut ot = ChouOrlandiOTReceiver::new(
+                TcpStream::connect("127.0.0.1:1240").unwrap(),
+                Sha3_256::default(),
+                SodiumCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
             ot.receive(c, n, l).unwrap()
