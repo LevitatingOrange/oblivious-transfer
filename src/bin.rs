@@ -1,7 +1,7 @@
-extern crate ot;
 extern crate digest;
-extern crate sha3;
+extern crate ot;
 extern crate rand;
+extern crate sha3;
 
 use rand::OsRng;
 use ot::communication::corrupted::CorruptedChannel;
@@ -11,6 +11,4 @@ use std::net::TcpStream;
 use std::thread;
 use sha3::Sha3_256;
 
-pub fn main() {
-
-}
+pub fn main() {}

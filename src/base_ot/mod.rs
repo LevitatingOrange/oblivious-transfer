@@ -8,9 +8,9 @@ pub mod chou;
 
 #[derive(Debug)]
 pub enum Error {
-    PointError, 
+    PointError,
     Connection(io::Error),
-    IndexOutOfRange
+    IndexOutOfRange,
 }
 
 impl fmt::Display for Error {
@@ -18,7 +18,7 @@ impl fmt::Display for Error {
         match *self {
             Error::PointError => write!(f, "received point is invalid"),
             Error::Connection(ref e) => e.fmt(f),
-            Error::IndexOutOfRange => write!(f, "index out of range")
+            Error::IndexOutOfRange => write!(f, "index out of range"),
         }
     }
 }
@@ -28,7 +28,7 @@ impl error::Error for Error {
         match *self {
             Error::PointError => "This is caused by corrupted communication channel",
             Error::Connection(ref e) => e.description(),
-            Error::IndexOutOfRange => "The selected index is out of bounds"
+            Error::IndexOutOfRange => "The selected index is out of bounds",
         }
     }
 }
@@ -39,12 +39,10 @@ impl From<io::Error> for Error {
     }
 }
 
-
-
-pub trait BaseOTSender<T> {
-    fn send(&mut self, values: Vec<T>) -> Result<(), Error>;
+pub trait BaseOTSender {
+    fn send(&mut self, values: Vec<&[u8]>) -> Result<(), Error>;
 }
 
-pub trait BaseOTReceiver<T> {
-    fn receive(&mut self, index: u64) -> Result<T, Error>;   
+pub trait BaseOTReceiver {
+    fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, Error>;
 }
