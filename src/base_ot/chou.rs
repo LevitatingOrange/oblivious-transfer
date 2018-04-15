@@ -10,7 +10,7 @@ use std::vec::Vec;
 use std::iter::Iterator;
 use digest::Digest;
 use generic_array::{ArrayLength, GenericArray};
-use crypto::{DummySymmetric, SymmetricDecryptor, SymmetricEncryptor};
+use crypto::{SymmetricDecryptor, SymmetricEncryptor};
 
 pub struct ChouOrlandiOTSender<T, D, E, S>
 where
@@ -24,7 +24,6 @@ where
     encryptor: S,
     y: Scalar,
     t64: EdwardsPoint,
-    s8: EdwardsPoint,
 }
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error>
@@ -39,7 +38,6 @@ where
 }
 
 // TODO: parallelize the protocol
-// TODO: maybe use hasher trait and not digest trait to be more general
 
 impl<
     T: Read + Write,
@@ -73,11 +71,10 @@ impl<
             encryptor: encryptor,
             y: y,
             t64: (y * s).mul_by_cofactor(),
-            s8: s,
         })
     }
 
-    pub fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, E>>, super::Error> {
+    fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, E>>, super::Error> {
         let mut hasher = self.hasher.clone();
         let r = receive_point(&mut self.conn)?.mul_by_cofactor();
         // seed the hash function with s and r in its compressed form
@@ -158,7 +155,7 @@ impl<
         })
     }
 
-    pub fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, E>, super::Error> {
+    fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, E>, super::Error> {
         let mut hasher = self.hasher.clone();
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
@@ -186,9 +183,12 @@ impl<
 {
     fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, super::Error> {
         let key = self.compute_key(index)?;
-        // TODO remove this _buf?
+        println!("key: {:?}", key);
+        // TODO make this idiomatic
         let mut buf: Vec<u8> = Vec::with_capacity(l);
+        buf.resize(l, 0);
         let mut _buf: Vec<u8> = Vec::with_capacity(l);
+        _buf.resize(l, 0);
         for i in 0..n {
             if i == index as usize {
                 self.conn.read_exact(&mut buf)?;
@@ -196,6 +196,7 @@ impl<
                 self.conn.read_exact(&mut _buf)?;
             }
         }
+        println!("buf: {:?}", buf);
         self.decryptor.decrypt(key, &mut buf);
         Ok(buf)
     }
@@ -210,7 +211,7 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
-    use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
+    use crypto::DummySymmetric;
 
     #[test]
     fn chou_ot_key_exchange() {
@@ -245,7 +246,7 @@ mod tests {
 
     #[test]
     fn chou_ot_key_exchange_multiple() {
-        static indices: [u64; 5] = [5, 0, 9, 3, 7];
+        static INDICES: [u64; 5] = [5, 0, 9, 3, 7];
 
         let server = thread::spawn(move || {
             let mut ot = ChouOrlandiOTSender::new(
@@ -258,7 +259,7 @@ mod tests {
                 DummySymmetric::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
-            indices
+            INDICES
                 .iter()
                 .map(move |i| ot.compute_keys(10).unwrap()[*i as usize])
                 .collect()
@@ -271,7 +272,7 @@ mod tests {
                 DummySymmetric::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
-            indices
+            INDICES
                 .iter()
                 .map(move |i| ot.compute_key(*i).unwrap())
                 .collect()

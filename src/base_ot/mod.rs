@@ -43,6 +43,7 @@ pub trait BaseOTSender {
     fn send(&mut self, values: Vec<&[u8]>) -> Result<(), Error>;
 }
 
+// TODO: is this interface good?!
 pub trait BaseOTReceiver {
     fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, Error>;
 }

@@ -1,9 +1,9 @@
-/// A simple dummy oblivious transfer routine, 1-to-n, of values of type i64. No security whatsoever.
-/// Implemented as a baseline for the secure protocols.
+// A simple dummy oblivious transfer routine, 1-to-n, of values of type i64. No security whatsoever.
+// Implemented as a baseline for the secure protocols.
 
-use std::io::prelude::*;
-use std::mem;
-use std::io;
+// use std::io::prelude::*;
+// use std::mem;
+// use std::io;
 
 // pub struct DummyOT<T: Read + Write> {
 //     conn: T

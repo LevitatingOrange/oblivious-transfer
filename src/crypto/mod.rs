@@ -19,7 +19,7 @@ where
 /// Only here to test, should not be used for anything.
 
 #[derive(Default)]
-pub(crate) struct DummySymmetric();
+pub struct DummySymmetric();
 
 impl<E: ArrayLength<u8>> SymmetricEncryptor<E> for DummySymmetric {
     fn encrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]) {
