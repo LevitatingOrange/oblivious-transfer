@@ -213,7 +213,7 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
-    use crypto::{DummyCryptoProvider, SodiumCryptoProvider};
+    use crypto::{DummyCryptoProvider, sodium::SodiumCryptoProvider};
     use rand::{thread_rng, Rng};
     use std::sync::Arc;
     use std::time::Duration;

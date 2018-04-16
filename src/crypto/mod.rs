@@ -1,5 +1,6 @@
-use generic_array::{ArrayLength, GenericArray, typenum::U32, typenum::Integer};
-use rust_sodium::crypto::stream;
+use generic_array::{ArrayLength, GenericArray};
+
+pub mod sodium;
 
 // TODO: is this a good interface? should there maybe be only one trait?
 
@@ -39,37 +40,3 @@ impl<E: ArrayLength<u8>> SymmetricDecryptor<E> for DummyCryptoProvider {
         }
     }
 }
-
-#[derive(Default)]
-/// Wrapper around the rust-sodium library
-pub struct SodiumCryptoProvider();
-
-
-impl SymmetricEncryptor<U32> for SodiumCryptoProvider {
-    fn encrypt(&mut self, key: GenericArray<u8, U32>, data: &mut [u8]) {
-        let mut a_key: [u8; 32] = Default::default();
-        a_key.copy_from_slice(&key); 
-        // TODO: is a constant nonce really ok here? It should be because each 
-        // key is different.
-        let nonce = stream::Nonce([0; 24]);
-        stream::stream_xor_inplace(data, &nonce, &stream::Key(a_key));
-    }
-}
-
-impl SymmetricDecryptor<U32> for SodiumCryptoProvider {
-    fn decrypt(&mut self, key: GenericArray<u8, U32>, data: &mut [u8]) {
-        let mut a_key: [u8; 32] = Default::default();
-        a_key.copy_from_slice(&key); 
-        // TODO: is a constant nonce really ok here? It should be because each 
-        // key is different.
-        let nonce = stream::Nonce([0; 24]);
-        stream::stream_xor_inplace(data, &nonce, &stream::Key(a_key));
-    }
-}
-
-// impl<E: ArrayLength<u8>> SymmetricDecryptor<E> for SodiumCryptoProvider {
-//     fn decrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]) {
-//         assert!(key.len() == 256);
-//         stream::stream_xor_inplace(data, [0; 24], &stream::Key(key));
-//     }
-// }
