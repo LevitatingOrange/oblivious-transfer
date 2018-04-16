@@ -9,6 +9,7 @@ extern crate rust_sodium;
 extern crate sha3;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate tungstenite;
+extern crate url;
 
 #[macro_use]
 extern crate error_chain;

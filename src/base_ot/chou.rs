@@ -217,10 +217,13 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
     use sha3::Sha3_256;
-    use crypto::{DummyCryptoProvider, sodium::SodiumCryptoProvider};
+    use crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider};
     use rand::{thread_rng, Rng};
     use std::sync::Arc;
     use std::time::Duration;
+    use tungstenite::server::accept;
+    use tungstenite::client::connect;
+    use url::Url;
 
     fn create_random_strings(n: usize, l: usize) -> Vec<String> {
         let mut rng = thread_rng();
@@ -230,6 +233,44 @@ mod tests {
             values.push(s);
         }
         values
+    }
+
+    macro_rules! generate_communication_test {
+        ( $client_conn:expr, $server_conn:expr, $digest:expr, $enc:expr, $dec:expr) => {
+             let n = 10;
+        let l = 512;
+        let c: u64 = 6;
+
+        let values = Arc::new(create_random_strings(n, l));
+        let vals = Arc::clone(&values);
+        let vals2 = Arc::clone(&values);
+
+        let server = thread::spawn(move || {
+            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
+
+            let mut ot = ChouOrlandiOTSender::new(
+                $client_conn,
+                $digest,
+                $enc,
+                &mut OsRng::new().unwrap(),
+            ).unwrap();
+            ot.send(vals).unwrap()
+        });
+        let client = thread::spawn(move || {
+            // TODO: make this better
+            thread::sleep(Duration::new(1, 0));
+            let mut ot = ChouOrlandiOTReceiver::new(
+                $server_conn,
+                $digest,
+                $dec,
+                OsRng::new().unwrap(),
+            ).unwrap();
+            ot.receive(c, n).unwrap()
+        });
+        let _ = server.join().unwrap();
+        let result = String::from_utf8(client.join().unwrap()).unwrap();
+        assert_eq!(result, vals2[c as usize]);
+        };
     }
 
     #[test]
@@ -356,85 +397,70 @@ mod tests {
     }
 
     #[test]
-    fn test_communication_with_dummy_encryption() {
-        let n = 10;
-        let l = 512;
-        let c: u64 = 6;
-
-        let values = Arc::new(create_random_strings(n, l));
-        let vals = Arc::clone(&values);
-        let vals2 = Arc::clone(&values);
-
-        let server = thread::spawn(move || {
-            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
-
-            let mut ot = ChouOrlandiOTSender::new(
-                TcpListener::bind("127.0.0.1:1239")
-                    .unwrap()
-                    .accept()
-                    .unwrap()
-                    .0,
-                Sha3_256::default(),
-                DummyCryptoProvider::default(),
-                &mut OsRng::new().unwrap(),
-            ).unwrap();
-            ot.send(vals).unwrap()
-        });
-        let client = thread::spawn(move || {
-            // TODO: make this better
-            thread::sleep(Duration::new(1, 0));
-            let mut ot = ChouOrlandiOTReceiver::new(
-                TcpStream::connect("127.0.0.1:1239").unwrap(),
-                Sha3_256::default(),
-                DummyCryptoProvider::default(),
-                OsRng::new().unwrap(),
-            ).unwrap();
-            ot.receive(c, n).unwrap()
-        });
-        let _ = server.join().unwrap();
-        let result = String::from_utf8(client.join().unwrap()).unwrap();
-        assert_eq!(result, vals2[c as usize]);
+    fn test_tcp_with_dummy_encryption() {
+        generate_communication_test!(
+            TcpListener::bind("127.0.0.1:1239")
+                .unwrap()
+                .accept()
+                .unwrap()
+                .0,
+            TcpStream::connect("127.0.0.1:1239").unwrap(),
+            Sha3_256::default(),
+            DummyCryptoProvider::default(),
+            DummyCryptoProvider::default()
+        );
     }
 
     #[test]
-    fn test_communication_with_sodium_encryption() {
-        let n = 10;
-        let l = 512;
-        let c: u64 = 6;
+    fn tcp_with_sodium_encryption() {
+        generate_communication_test!(
+            TcpListener::bind("127.0.0.1:1240")
+                .unwrap()
+                .accept()
+                .unwrap()
+                .0,
+            TcpStream::connect("127.0.0.1:1240").unwrap(),
+            Sha3_256::default(),
+            SodiumCryptoProvider::default(),
+            SodiumCryptoProvider::default()
+        );
+    }
 
-        let values = Arc::new(create_random_strings(n, l));
-        let vals = Arc::clone(&values);
-        let vals2 = Arc::clone(&values);
-
-        let server = thread::spawn(move || {
-            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
-
-            let mut ot = ChouOrlandiOTSender::new(
-                TcpListener::bind("127.0.0.1:1240")
+    #[test]
+    fn websocket_with_dummy_encryption() {
+        generate_communication_test!(
+            accept(
+                TcpListener::bind("127.0.0.1:1241")
                     .unwrap()
                     .accept()
                     .unwrap()
-                    .0,
-                Sha3_256::default(),
-                SodiumCryptoProvider::default(),
-                &mut OsRng::new().unwrap(),
-            ).unwrap();
-            ot.send(vals).unwrap()
-        });
-        let client = thread::spawn(move || {
-            // TODO: make this better
-            thread::sleep(Duration::new(1, 0));
-            let mut ot = ChouOrlandiOTReceiver::new(
-                TcpStream::connect("127.0.0.1:1240").unwrap(),
-                Sha3_256::default(),
-                SodiumCryptoProvider::default(),
-                OsRng::new().unwrap(),
-            ).unwrap();
-            ot.receive(c, n).unwrap()
-        });
-        let _ = server.join().unwrap();
-        let result = String::from_utf8(client.join().unwrap()).unwrap();
-        assert_eq!(result, vals2[c as usize]);
+                    .0
+            ).unwrap(),
+            connect(Url::parse("ws://localhost:1241/socket").unwrap())
+                .unwrap()
+                .0,
+            Sha3_256::default(),
+            DummyCryptoProvider::default(),
+            DummyCryptoProvider::default()
+        );
     }
 
+    #[test]
+    fn websocket_with_sodium_encryption() {
+        generate_communication_test!(
+            accept(
+                TcpListener::bind("127.0.0.1:1242")
+                    .unwrap()
+                    .accept()
+                    .unwrap()
+                    .0
+            ).unwrap(),
+            connect(Url::parse("ws://localhost:1242/socket").unwrap())
+                .unwrap()
+                .0,
+            Sha3_256::default(),
+            SodiumCryptoProvider::default(),
+            SodiumCryptoProvider::default()
+        );
+    }
 }
