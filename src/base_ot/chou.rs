@@ -237,9 +237,9 @@ mod tests {
 
     macro_rules! generate_communication_test {
         ( $client_conn:expr, $server_conn:expr, $digest:expr, $enc:expr, $dec:expr) => {
-             let n = 10;
+        let n: usize = 10;
         let l = 512;
-        let c: u64 = 6;
+        let c: u64 = thread_rng().gen_range(0, n as u64);
 
         let values = Arc::new(create_random_strings(n, l));
         let vals = Arc::clone(&values);
@@ -269,7 +269,7 @@ mod tests {
         });
         let _ = server.join().unwrap();
         let result = String::from_utf8(client.join().unwrap()).unwrap();
-        assert_eq!(result, vals2[c as usize]);
+        assert_eq!(result, vals2[c as usize], "result incorrect with following index: {} and values: {:?}", c, values);
         };
     }
 
@@ -397,7 +397,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tcp_with_dummy_encryption() {
+    fn tcp_with_dummy_encryption() {
         generate_communication_test!(
             TcpListener::bind("127.0.0.1:1239")
                 .unwrap()
