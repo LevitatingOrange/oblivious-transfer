@@ -1,7 +1,7 @@
 /// corrupted communication channel to simulate an active adversary
 /// it wraps around an existing implementation of BinarySend and BinaryReceive
 use super::{BinaryReceive, BinarySend};
-use std::io;
+use errors::*;
 
 fn empty_corruptor<S>(_: &mut S, _: &mut [u8])
 where
@@ -68,7 +68,7 @@ impl<S: Default, C: BinaryReceive + BinarySend> CorruptedChannel<S, C> {
 }
 
 impl<S: Default, C: BinaryReceive + BinarySend> BinaryReceive for CorruptedChannel<S, C> {
-    fn receive(&mut self) -> Result<Vec<u8>, io::Error> {
+    fn receive(&mut self) -> Result<Vec<u8>> {
         let mut v = self.conn.receive()?;
         (self.corruptor)(&mut self.state, &mut v);
         Ok(v)
@@ -76,7 +76,7 @@ impl<S: Default, C: BinaryReceive + BinarySend> BinaryReceive for CorruptedChann
 }
 
 impl<S: Default, C: BinaryReceive + BinarySend> BinarySend for CorruptedChannel<S, C> {
-    fn send(&mut self, data: &[u8]) -> Result<(), io::Error> {
+    fn send(&mut self, data: &[u8]) -> Result<()> {
         (self.eavesdropper)(&mut self.state, data);
         self.conn.send(data)
     }

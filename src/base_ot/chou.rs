@@ -1,6 +1,6 @@
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
-
+use errors::*;
 use rand::Rng;
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
@@ -12,12 +12,12 @@ use generic_array::{ArrayLength, GenericArray};
 use crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use communication::{BinaryReceive, BinarySend};
 
-pub struct ChouOrlandiOTSender<T, D, E, S>
+pub struct ChouOrlandiOTSender<T, D, L, S>
 where
     T: BinarySend + BinaryReceive,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricEncryptor<E>,
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricEncryptor<L>,
 {
     conn: T,
     hasher: D,
@@ -26,22 +26,22 @@ where
     t64: EdwardsPoint,
 }
 
-fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error>
+fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint>
 where
     T: BinaryReceive,
 {
     let v = conn.receive()?;
     if v.len() != 32 {
-        return Err(super::Error::PointError);
+        return Err(ErrorKind::PointError.into());
     }
     let mut buf: [u8; 32] = Default::default();
     buf.copy_from_slice(&v);
     CompressedEdwardsY(buf)
         .decompress()
-        .ok_or(super::Error::PointError)
+        .ok_or(ErrorKind::PointError.into())
 }
 
-fn send_point<T>(conn: &mut T, p: EdwardsPoint) -> Result<(), super::Error>
+fn send_point<T>(conn: &mut T, p: EdwardsPoint) -> Result<()>
 where
     T: BinarySend,
 {
@@ -53,17 +53,12 @@ where
 
 impl<
     T: BinarySend + BinaryReceive,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricEncryptor<E>,
-> ChouOrlandiOTSender<T, D, E, S>
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricEncryptor<L>,
+> ChouOrlandiOTSender<T, D, L, S>
 {
-    pub fn new<R>(
-        mut conn: T,
-        mut hasher: D,
-        encryptor: S,
-        rng: &mut R,
-    ) -> Result<Self, super::Error>
+    pub fn new<R>(mut conn: T, mut hasher: D, encryptor: S, rng: &mut R) -> Result<Self>
     where
         R: Rng,
     {
@@ -86,7 +81,7 @@ impl<
         })
     }
 
-    fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, E>>, super::Error> {
+    fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, L>>> {
         let mut hasher = self.hasher.clone();
         let r = receive_point(&mut self.conn)?.mul_by_cofactor();
         // seed the hash function with s and r in its compressed form
@@ -107,12 +102,12 @@ impl<
 
 impl<
     T: BinaryReceive + BinarySend,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricEncryptor<E>,
-> super::BaseOTSender for ChouOrlandiOTSender<T, D, E, S>
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricEncryptor<L>,
+> super::BaseOTSender for ChouOrlandiOTSender<T, D, L, S>
 {
-    fn send(&mut self, values: Vec<&[u8]>) -> Result<(), super::Error> {
+    fn send(&mut self, values: Vec<&[u8]>) -> Result<()> {
         let keys = self.compute_keys(values.len() as u64)?;
         // TODO: make this idiomatic, compute_keys, is copy ok here?
         for (key, value) in keys.into_iter().zip(values) {
@@ -124,13 +119,13 @@ impl<
     }
 }
 
-pub struct ChouOrlandiOTReceiver<T, R, D, E, S>
+pub struct ChouOrlandiOTReceiver<T, R, D, L, S>
 where
     T: BinaryReceive + BinarySend,
     R: Rng,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricDecryptor<E>,
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricDecryptor<L>,
 {
     conn: T,
     hasher: D,
@@ -142,12 +137,12 @@ where
 impl<
     T: BinaryReceive + BinarySend,
     R: Rng,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricDecryptor<E>,
-> ChouOrlandiOTReceiver<T, R, D, E, S>
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricDecryptor<L>,
+> ChouOrlandiOTReceiver<T, R, D, L, S>
 {
-    pub fn new(mut conn: T, mut hasher: D, decryptor: S, rng: R) -> Result<Self, super::Error> {
+    pub fn new(mut conn: T, mut hasher: D, decryptor: S, rng: R) -> Result<Self> {
         let mut s = receive_point(&mut conn)?;
 
         // as we've added a point from the eight torsion subgroup to s before sending,
@@ -166,7 +161,7 @@ impl<
         })
     }
 
-    fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, E>, super::Error> {
+    fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, L>> {
         let mut hasher = self.hasher.clone();
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
@@ -187,12 +182,12 @@ impl<
 impl<
     T: BinaryReceive + BinarySend,
     R: Rng,
-    D: Digest<OutputSize = E> + Clone,
-    E: ArrayLength<u8>,
-    S: SymmetricDecryptor<E>,
-> super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, E, S>
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricDecryptor<L>,
+> super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, L, S>
 {
-    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>, super::Error> {
+    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>> {
         let key = self.compute_key(index)?;
         // TODO make this more idiomatic?
         // at the moment this should prevent timing attacks
