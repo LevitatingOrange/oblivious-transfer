@@ -1,7 +1,6 @@
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 
-use std::io::prelude::*;
 use rand::Rng;
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
@@ -11,10 +10,11 @@ use std::iter::Iterator;
 use digest::Digest;
 use generic_array::{ArrayLength, GenericArray};
 use crypto::{SymmetricDecryptor, SymmetricEncryptor};
+use communication::{BinaryReceive, BinarySend};
 
 pub struct ChouOrlandiOTSender<T, D, E, S>
 where
-    T: Read + Write,
+    T: BinarySend + BinaryReceive,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
     S: SymmetricEncryptor<E>,
@@ -28,19 +28,31 @@ where
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint, super::Error>
 where
-    T: Read,
+    T: BinaryReceive,
 {
+    let v = conn.receive()?;
+    if v.len() != 32 {
+        return Err(super::Error::PointError);
+    }
     let mut buf: [u8; 32] = Default::default();
-    conn.read_exact(&mut buf)?;
+    buf.copy_from_slice(&v);
     CompressedEdwardsY(buf)
         .decompress()
         .ok_or(super::Error::PointError)
 }
 
+fn send_point<T>(conn: &mut T, p: EdwardsPoint) -> Result<(), super::Error>
+where
+    T: BinarySend,
+{
+    conn.send(p.compress().as_bytes())?;
+    Ok(())
+}
+
 // TODO: parallelize the protocol
 
 impl<
-    T: Read + Write,
+    T: BinarySend + BinaryReceive,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
     S: SymmetricEncryptor<E>,
@@ -61,7 +73,7 @@ impl<
         // we dont send s directly, instead we add a point from the eight torsion subgroup.
         // This enables the receiver to verify that s is in the subgroup of the twisted edwards curve
         // 25519 of Bernstein et al. [TODO: CITE]
-        conn.write_all((s + EIGHT_TORSION[1]).compress().as_bytes())?;
+        send_point(&mut conn, s + EIGHT_TORSION[1])?;
         // see ChouOrlandiOTReceiver::new for discussion of why to multiply by the cofactor (i.e. 8)
         s = s.mul_by_cofactor();
         hasher.input(s.compress().as_bytes());
@@ -94,7 +106,7 @@ impl<
 }
 
 impl<
-    T: Read + Write,
+    T: BinaryReceive + BinarySend,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
     S: SymmetricEncryptor<E>,
@@ -106,8 +118,7 @@ impl<
         for (key, value) in keys.into_iter().zip(values) {
             let mut buf = value.to_owned();
             self.encryptor.encrypt(key, &mut buf);
-            self.conn.write_all(&mut buf)?;
-            self.conn.flush()?;
+            self.conn.send(&buf)?;
         }
         Ok(())
     }
@@ -115,7 +126,7 @@ impl<
 
 pub struct ChouOrlandiOTReceiver<T, R, D, E, S>
 where
-    T: Read + Write,
+    T: BinaryReceive + BinarySend,
     R: Rng,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
@@ -129,7 +140,7 @@ where
 }
 
 impl<
-    T: Read + Write,
+    T: BinaryReceive + BinarySend,
     R: Rng,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
@@ -159,8 +170,8 @@ impl<
         let mut hasher = self.hasher.clone();
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
-        self.conn
-            .write_all((r + EIGHT_TORSION[1]).compress().as_bytes())?;
+
+        send_point(&mut self.conn, r + EIGHT_TORSION[1])?;
 
         // seed the hash function with s and r in it's compressed form
         hasher.input(r.mul_by_cofactor().compress().as_bytes());
@@ -174,28 +185,26 @@ impl<
 }
 
 impl<
-    T: Read + Write,
+    T: BinaryReceive + BinarySend,
     R: Rng,
     D: Digest<OutputSize = E> + Clone,
     E: ArrayLength<u8>,
     S: SymmetricDecryptor<E>,
 > super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, E, S>
 {
-    fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, super::Error> {
+    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>, super::Error> {
         let key = self.compute_key(index)?;
         // TODO make this more idiomatic?
         // at the moment this should prevent timing attacks
         // by looking how long it takes the receiver to
         // read a value
-        let mut buf: Vec<u8> = Vec::with_capacity(l);
-        buf.resize(l, 0);
-        let mut _buf: Vec<u8> = Vec::with_capacity(l);
-        _buf.resize(l, 0);
+        let mut buf: Vec<u8> = Default::default();
+        let mut _buf: Vec<u8> = Default::default();
         for i in 0..n {
             if i == index as usize {
-                self.conn.read_exact(&mut buf)?;
+                buf = self.conn.receive()?;
             } else {
-                self.conn.read_exact(&mut _buf)?;
+                _buf = self.conn.receive()?;
             }
         }
         self.decryptor.decrypt(key, &mut buf);
@@ -385,7 +394,7 @@ mod tests {
                 DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
-            ot.receive(c, n, l).unwrap()
+            ot.receive(c, n).unwrap()
         });
         let _ = server.join().unwrap();
         let result = String::from_utf8(client.join().unwrap()).unwrap();
@@ -426,7 +435,7 @@ mod tests {
                 SodiumCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
-            ot.receive(c, n, l).unwrap()
+            ot.receive(c, n).unwrap()
         });
         let _ = server.join().unwrap();
         let result = String::from_utf8(client.join().unwrap()).unwrap();

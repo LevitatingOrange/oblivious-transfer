@@ -26,7 +26,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::PointError => "This is caused by corrupted communication channel",
+            Error::PointError => "This is caused by a corrupted communication channel",
             Error::Connection(ref e) => e.description(),
             Error::IndexOutOfRange => "The selected index is out of bounds",
         }
@@ -44,6 +44,9 @@ pub trait BaseOTSender {
 }
 
 // TODO: is this interface good?!
+// TODO: should we specify the length as it is
+// transmitted in clear and could be altered
+// either encrypt it or specify l here which we compare to
 pub trait BaseOTReceiver {
-    fn receive(&mut self, index: u64, n: usize, l: usize) -> Result<Vec<u8>, Error>;
+    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>, Error>;
 }
