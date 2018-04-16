@@ -1,6 +1,7 @@
 /// corrupted communication channel to simulate an active adversary
+/// it wraps around an existing implementation of BinarySend and BinaryReceive
+use super::{BinaryReceive, BinarySend};
 use std::io;
-use super::*;
 
 fn empty_corruptor<S>(_: &mut S, _: &mut [u8])
 where
