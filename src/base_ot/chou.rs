@@ -190,20 +190,12 @@ impl<
     fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>> {
         let key = self.compute_key(index)?;
         // TODO make this more idiomatic?
-        // at the moment this should prevent timing attacks
-        // by looking how long it takes the receiver to
-        // read a value
-        let mut buf: Vec<u8> = Default::default();
-        let mut _buf: Vec<u8> = Default::default();
-        for i in 0..n {
-            if i == index as usize {
-                buf = self.conn.receive()?;
-            } else {
-                _buf = self.conn.receive()?;
-            }
+        let mut buffers: Vec<Vec<u8>> = Default::default();
+        for _ in 0..n {
+            buffers.push(self.conn.receive()?);
         }
-        self.decryptor.decrypt(key, &mut buf);
-        Ok(buf)
+        self.decryptor.decrypt(key, &mut (buffers[index as usize]));
+        Ok(buffers.remove(index as usize))
     }
 }
 

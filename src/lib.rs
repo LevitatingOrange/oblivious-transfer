@@ -6,6 +6,8 @@ extern crate generic_array;
 extern crate rand;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate rust_sodium;
+// TODO: consider tiny keccak
+// TODO: rewrite digest trait?
 extern crate sha3;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate tungstenite;
