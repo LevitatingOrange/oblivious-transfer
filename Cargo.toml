@@ -6,7 +6,7 @@ authors = ["Lennart Vogelsang <dev@vogelsangs.net>"]
 publish = false
 
 [lib]
-crate-type = ["lib", "cdylib"]
+crate-type = ["cdylib"]
 name = "ot"
 path = "src/lib.rs"
 
@@ -15,7 +15,7 @@ name = "ot_test_bin"
 path = "src/bin.rs"
 
 [target.'cfg(all(target_arch="wasm32", target_os="unknown"))'.dependencies]
-wasm-bindgen = "0.2"
+#wasm-bindgen = "0.2"
 
 [target.'cfg(not(all(target_arch="wasm32", target_os="unknown")))'.dependencies]
 rust_sodium = "0.8.0"
@@ -28,6 +28,7 @@ rust_sodium-sys = "0.8.1"
 curve25519-dalek = {version = "^0.16"}
 rand = "0.4.0"
 digest = "0.7.2"
+#TODO: use tiny keccak or other sha library
 sha3 = "0.7.3"
 error-chain = "0.11.0"
 generic-array = "0.9.0"
