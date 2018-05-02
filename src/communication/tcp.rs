@@ -1,9 +1,9 @@
+use super::{BinaryReceive, BinarySend};
 /// simple protocol: data gets it's length prepended and send
 use errors::*;
-use super::{BinaryReceive, BinarySend};
 use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::mem::transmute;
+use std::net::TcpStream;
 use std::vec::Vec;
 
 // TODO: find alternative for transmute!

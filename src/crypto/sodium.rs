@@ -1,4 +1,4 @@
-use generic_array::{GenericArray, typenum::U32};
+use generic_array::{typenum::U32, GenericArray};
 use rust_sodium::crypto::stream;
 
 use super::{SymmetricDecryptor, SymmetricEncryptor};

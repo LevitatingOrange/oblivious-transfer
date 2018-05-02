@@ -22,7 +22,7 @@ extern crate stdweb;
 
 #[macro_use]
 extern crate error_chain;
-mod errors {
+pub mod errors {
     // Create the Error, ErrorKind, ResultExt, and Result types
     error_chain!{
 
@@ -51,7 +51,7 @@ mod errors {
 
 pub mod base_ot;
 pub mod communication;
-mod crypto;
+pub mod crypto;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[no_mangle]

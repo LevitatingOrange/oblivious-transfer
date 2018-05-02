@@ -1,9 +1,9 @@
-use errors::*;
 use super::{BinaryReceive, BinarySend};
+use errors::*;
 use std::io::{Read, Write};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use tungstenite::{Message, protocol::WebSocket};
+use tungstenite::{protocol::WebSocket, Message};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 impl<S: Read + Write> BinarySend for WebSocket<S> {
@@ -26,21 +26,16 @@ impl<S: Read + Write> BinaryReceive for WebSocket<S> {
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use std::vec::Vec;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use stdweb::traits::*;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use stdweb::unstable::TryInto;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-use stdweb::web::{
-    WebSocket,
-};
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-use std::vec::Vec;
-
-
+use stdweb::web::WebSocket;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 struct WasmWebSocket {
     ws: WebSocket,
-    msg: Vec<Vec<u8>> 
+    msg: Vec<Vec<u8>>,
 }
-
