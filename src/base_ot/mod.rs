@@ -2,7 +2,7 @@ use errors::*;
 use std::vec::Vec;
 
 pub mod dummy;
-pub mod chou;
+pub mod chou_async;
 
 pub trait BaseOTSender {
     fn send(&mut self, values: Vec<&[u8]>) -> Result<()>;

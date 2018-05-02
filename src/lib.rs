@@ -1,17 +1,24 @@
 #![recursion_limit = "1024"]
+#![feature(proc_macro, generators)]
+
+extern crate tokio;
 
 extern crate curve25519_dalek;
 extern crate digest;
 extern crate generic_array;
 extern crate rand;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-extern crate rust_sodium;
+extern crate url;
 // TODO: consider tiny keccak
 // TODO: rewrite digest trait?
 extern crate sha3;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+extern crate rust_sodium;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate tungstenite;
-extern crate url;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+extern crate stdweb;
 
 #[macro_use]
 extern crate error_chain;
