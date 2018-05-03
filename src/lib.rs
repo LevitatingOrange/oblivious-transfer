@@ -2,6 +2,7 @@
 #![feature(proc_macro, generators)]
 
 extern crate tokio;
+extern crate futures;
 
 extern crate curve25519_dalek;
 extern crate digest;

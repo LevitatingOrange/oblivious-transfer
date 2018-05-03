@@ -30,6 +30,7 @@ tungstenite = "0.5.3"
 rust_sodium-sys = "0.8.1"
 #TODO: wait for next version to correctly import futures
 tokio = {git = "https://github.com/tokio-rs/tokio", features = ["futures2"]}
+futures = "0.2.0"
 
 [dependencies]
 #TODO: nightly for faster field elements

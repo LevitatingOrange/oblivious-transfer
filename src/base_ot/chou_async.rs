@@ -10,10 +10,9 @@ use digest::Digest;
 use errors::*;
 use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
-use std::iter::Iterator;
-use std::vec::Vec;
 use tokio::io::{read_exact, write_all};
 use tokio::prelude::*;
+use tokio::prelude::future::ok;
 
 fn send_point<T>(conn: T, point: EdwardsPoint) -> impl Future<Item = T, Error = Error>
 where
@@ -193,25 +192,27 @@ mod tests {
     use sha3::Sha3_256;
     use tokio;
     use tokio::net::{TcpListener, TcpStream};
+    use tokio::prelude::*;
     #[test]
     fn chou_ot_key_exchange() {
         const index: u64 = 3;
+        const num: u64 = 10;
         let addr = "127.0.0.1:1236".parse().unwrap();
         let server = TcpListener::bind(&addr)
             .unwrap()
-            .incoming()
+            .incoming().take(1)
             .map_err(|err| eprintln!("Error establishing Connection {:?}", err))
-            .for_each(|socket| {
+            .and_then(move |socket| {
                 let sender = ChouOrlandiOTSender::new(
                     socket,
                     Sha3_256::default(),
                     DummyCryptoProvider::default(),
                     &mut OsRng::new().unwrap(),
-                ).and_then(|s| s.compute_keys(10))
-                    .map(|(_, result)| println!("Sender Keys: {:?}", result))
+                ).and_then(|s| s.compute_keys(num))
+                    .map(|(_, result)| result)
                     .map_err(|err| eprintln!("Sender Error: {}", err));
-                tokio::spawn(sender)
-            });
+                sender
+            }).into_future().map(|(e, _)| e).map_err(|_| eprintln!("Server error"));
         let client = TcpStream::connect(&addr)
             .map_err(move |e| Error::with_chain(e, "Error while trying to connect to sender"))
             .and_then(|s| {
@@ -223,12 +224,15 @@ mod tests {
                 )
             })
             .and_then(|r| r.compute_key(index))
-            .map(|(_, result)| println!("Receiver Key {:?} for index {}", result, index))
+            .map(|(_, result)| result)
             .map_err(|err| eprintln!("Receiver Error: {}", err));
 
-        tokio::run(server);
-        tokio::spawn(client);
 
+        tokio::run(server.join(client).map(|(k, key)| {
+            let keys = k.unwrap();
+            assert_eq!(num, keys.len() as u64);
+            assert_eq!(keys[index as usize], key);
+        }));
         // let hashes_sender = server.join().unwrap();
         // let hash_receiver = client.join().unwrap();
 

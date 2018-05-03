@@ -5,6 +5,7 @@ extern crate ot;
 extern crate rand;
 extern crate sha3;
 extern crate tokio;
+extern crate futures;
 
 use ot::errors::*;
 use ot::base_ot::chou_async::*;
