@@ -7,7 +7,7 @@ use generic_array::{ArrayLength, GenericArray};
 pub struct DummyCryptoProvider();
 
 impl<E: ArrayLength<u8>> SymmetricEncryptor<E> for DummyCryptoProvider {
-    fn encrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]) {
+    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: &mut [u8]) {
         for i in 0..data.len() {
             data[i] ^= key[i % key.len()];
         }
@@ -15,7 +15,7 @@ impl<E: ArrayLength<u8>> SymmetricEncryptor<E> for DummyCryptoProvider {
 }
 
 impl<E: ArrayLength<u8>> SymmetricDecryptor<E> for DummyCryptoProvider {
-    fn decrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]) {
+    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: &mut [u8]) {
         for i in 0..data.len() {
             data[i] ^= key[i % key.len()];
         }

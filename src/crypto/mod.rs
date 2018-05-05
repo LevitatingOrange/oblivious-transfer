@@ -12,12 +12,12 @@ pub trait SymmetricEncryptor<E>
 where
     E: ArrayLength<u8>,
 {
-    fn encrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]);
+    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: &mut [u8]);
 }
 
 pub trait SymmetricDecryptor<E>
 where
     E: ArrayLength<u8>,
 {
-    fn decrypt(&mut self, key: GenericArray<u8, E>, data: &mut [u8]);
+    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: &mut [u8]);
 }

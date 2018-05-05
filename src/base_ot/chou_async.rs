@@ -12,7 +12,8 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use tokio::io::{read_exact, write_all};
 use tokio::prelude::*;
-use tokio::prelude::future::ok;
+
+use std::mem::transmute;
 
 fn send_point<T>(conn: T, point: EdwardsPoint) -> impl Future<Item = T, Error = Error>
 where
@@ -96,20 +97,44 @@ impl<
         receive_point(self.conn.take().unwrap()).and_then(move |(mut r, conn)| {
             self.conn = Some(conn);
             r = r.mul_by_cofactor();
-            // seed the hash function with s and r in its compressed form
-            self.hasher.input(r.compress().as_bytes());
+            // seed the hash function with r in its compressed form
+            let mut hasher = self.hasher.clone();
+            hasher.input(r.compress().as_bytes());
             let result = (0..n)
                 .map(|j| {
                     // hash p=64yR - 64jT, this will reduce to 64xS if c == j, but as x is only known
                     // to the receiver (provided the discrete logartihm problem is hard in our curve)
                     // the sender does not know c.
                     let p = self.y * r - Scalar::from_u64(j) * self.t64;
-                    let mut hasher = self.hasher.clone();
+                    let mut hasher = hasher.clone();
                     hasher.input(p.compress().as_bytes());
                     hasher.result()
                 })
                 .collect();
             Ok((self, result))
+        })
+    }
+
+    // TODO: return Self
+    pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
+        self.compute_keys(values.len() as u64).and_then(move |(s, keys)| {
+            let state = (s, keys.into_iter().zip(values).collect());
+            stream::unfold(state, |(mut s, mut kv):(Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
+                let conn = s.conn.take().unwrap();
+                if let Some((key, mut value)) = kv.pop() {
+                    let bytes: [u8; 8] = unsafe {transmute((value.len() as u64).to_be())};
+                    s.encryptor.encrypt(&key, &mut value);
+                    let fut = write_all(conn, bytes)
+                    .and_then(|(conn, _)| write_all(conn, value))
+                    .map(move |(conn, _)| {
+                        s.conn = Some(conn);
+                        ((), (s, kv))
+                    });
+                    Some(fut)
+                } else {
+                    None
+                }
+            }).collect().map(|_| ()).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
         })
     }
 }
@@ -182,6 +207,32 @@ impl<
             Ok((self, hasher.result()))
         })
     }
+
+    // TODO: Return Self
+    pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
+        self.compute_key(c as u64).and_then(move |(s, key)| {
+            let state = (s, 0, key);
+            stream::unfold(state, move |(mut s, i, key):(Self, usize, GenericArray<u8, L>)| {
+                let conn = s.conn.take().unwrap();
+                if i < n {
+                    let bytes: [u8; 8] = Default::default();
+                    let fut = read_exact(conn, bytes).and_then(|(conn, buf)| {
+                        let len = unsafe {u64::from_be(transmute(buf)) as usize};
+                        let mut v = Vec::with_capacity(len);
+                        v.resize(len, 0);                        
+                        read_exact(conn, v)
+                    }).map(move |(conn, mut buf)| {
+                        s.decryptor.decrypt(&key, &mut buf);
+                        s.conn = Some(conn);
+                        (buf, (s, i+1, key))
+                    });
+                    Some(fut)
+                } else {
+                    None
+                }
+            }).collect().map(move |mut vals| vals.remove(c)).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
+        })
+    }
 }
 
 #[cfg(test)]
@@ -233,9 +284,6 @@ mod tests {
             assert_eq!(num, keys.len() as u64);
             assert_eq!(keys[index as usize], key);
         }));
-        // let hashes_sender = server.join().unwrap();
-        // let hash_receiver = client.join().unwrap();
-
-        // assert_eq!(hashes_sender[index as usize], hash_receiver)
     }
+    
 }

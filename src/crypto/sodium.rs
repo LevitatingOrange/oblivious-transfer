@@ -8,7 +8,7 @@ use super::{SymmetricDecryptor, SymmetricEncryptor};
 pub struct SodiumCryptoProvider();
 
 impl SymmetricEncryptor<U32> for SodiumCryptoProvider {
-    fn encrypt(&mut self, key: GenericArray<u8, U32>, data: &mut [u8]) {
+    fn encrypt(&mut self, key: &GenericArray<u8, U32>, data: &mut [u8]) {
         // this is save because the type GenericArray<u8, U32> gurantees
         // its 32 byte long
         let mut a_key: [u8; 32] = Default::default();
@@ -21,7 +21,7 @@ impl SymmetricEncryptor<U32> for SodiumCryptoProvider {
 }
 
 impl SymmetricDecryptor<U32> for SodiumCryptoProvider {
-    fn decrypt(&mut self, key: GenericArray<u8, U32>, data: &mut [u8]) {
+    fn decrypt(&mut self, key: &GenericArray<u8, U32>, data: &mut [u8]) {
         // this is save because the type GenericArray<u8, U32> gurantees
         // its 32 byte long
         let mut a_key: [u8; 32] = Default::default();

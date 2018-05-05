@@ -1,5 +1,6 @@
 #![recursion_limit = "1024"]
 #![feature(proc_macro, generators)]
+#![feature(iterator_flatten)]
 
 extern crate tokio;
 extern crate futures;
