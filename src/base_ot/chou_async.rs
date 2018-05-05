@@ -1,4 +1,3 @@
-use communication::{BinaryReceive, BinarySend};
 use crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
@@ -208,7 +207,7 @@ impl<
         })
     }
 
-    // TODO: Return Self
+    // TODO: Return Self, don't specify size?
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
         self.compute_key(c as u64).and_then(move |(s, key)| {
             let state = (s, 0, key);
@@ -230,7 +229,7 @@ impl<
                 } else {
                     None
                 }
-            }).collect().map(move |mut vals| vals.remove(c)).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
+            }).collect().map(move |mut vals| vals.remove((n-1)-c)).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
         })
     }
 }
@@ -239,15 +238,27 @@ impl<
 mod tests {
     use super::*;
     use crypto::dummy::DummyCryptoProvider;
+    use crypto::sodium::SodiumCryptoProvider;
     use rand::OsRng;
+    use rand::thread_rng;
     use sha3::Sha3_256;
     use tokio;
     use tokio::net::{TcpListener, TcpStream};
-    use tokio::prelude::*;
+
+    fn create_random_strings(n: usize, l: usize) -> Vec<Vec<u8>> {
+        let mut rng = thread_rng();
+        let mut values = Vec::with_capacity(n);
+        for _ in 0..n {
+            let s: String = rng.gen_ascii_chars().take(l).collect();
+            values.push(s.into_bytes());
+        }
+        values
+    }
+
     #[test]
     fn chou_ot_key_exchange() {
-        const index: u64 = 3;
-        const num: u64 = 10;
+        let index: u64 = 3;
+        let num: u64 = 10;
         let addr = "127.0.0.1:1236".parse().unwrap();
         let server = TcpListener::bind(&addr)
             .unwrap()
@@ -259,7 +270,7 @@ mod tests {
                     Sha3_256::default(),
                     DummyCryptoProvider::default(),
                     &mut OsRng::new().unwrap(),
-                ).and_then(|s| s.compute_keys(num))
+                ).and_then(move |s| s.compute_keys(num))
                     .map(|(_, result)| result)
                     .map_err(|err| eprintln!("Sender Error: {}", err));
                 sender
@@ -274,15 +285,62 @@ mod tests {
                     OsRng::new().unwrap(),
                 )
             })
-            .and_then(|r| r.compute_key(index))
+            .and_then(move |r| r.compute_key(index))
             .map(|(_, result)| result)
             .map_err(|err| eprintln!("Receiver Error: {}", err));
 
 
-        tokio::run(server.join(client).map(|(k, key)| {
+        tokio::run(server.join(client).map(move |(k, key)| {
             let keys = k.unwrap();
             assert_eq!(num, keys.len() as u64);
             assert_eq!(keys[index as usize], key);
+        }));
+    }
+    #[test]
+    fn chou_with_sodium() {
+
+        let n = 10;
+        let l = 10;
+        let c = thread_rng().gen_range(0, n);
+
+        let addr = "127.0.0.1:1237".parse().unwrap();
+        let server = TcpListener::bind(&addr)
+            .unwrap()
+            .incoming().take(1)
+            .map_err(|err| eprintln!("Error establishing Connection {:?}", err))
+            .and_then(move |socket| {
+                let values = create_random_strings(n, l);
+                let set = values[c].to_owned();
+                let sender = ChouOrlandiOTSender::new(
+                    socket,
+                    Sha3_256::default(),
+                    SodiumCryptoProvider::default(),
+                    &mut OsRng::new().unwrap(),
+                ).and_then(move |s| s.send(values))
+                    .map_err(|err| eprintln!("Sender Error: {}", err))
+                    .map(|_| set);
+                sender
+            }).into_future().map(|(e, _)| e)
+            .map_err(|_| eprintln!("Server error"));
+        let client = TcpStream::connect(&addr)
+            .map_err(move |e| Error::with_chain(e, "Error while trying to connect to sender"))
+            .and_then(|s| {
+                ChouOrlandiOTReceiver::new(
+                    s,
+                    Sha3_256::default(),
+                    SodiumCryptoProvider::default(),
+                    OsRng::new().unwrap(),
+                )
+            })
+            .and_then(move |r| r.receive(c, n))
+            .map_err(|err| eprintln!("Receiver Error: {}", err));
+
+
+        tokio::run(server.join(client).map(move |(set, actual)| {
+            assert_eq!(set.unwrap(), actual);
+            // let keys = k.unwrap();
+            // assert_eq!(num, keys.len() as u64);
+            // assert_eq!(keys[index as usize], key);
         }));
     }
     
