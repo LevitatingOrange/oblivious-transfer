@@ -10,7 +10,7 @@ use std::iter::Iterator;
 use digest::Digest;
 use generic_array::{ArrayLength, GenericArray};
 use crypto::{SymmetricDecryptor, SymmetricEncryptor};
-use communication::{BinaryReceive, BinarySend};
+use communication::sync::{BinaryReceive, BinarySend};
 
 pub struct ChouOrlandiOTSender<T, D, L, S>
 where
@@ -205,7 +205,7 @@ mod tests {
     use rand::OsRng;
     use super::*;
     use base_ot::{BaseOTReceiver, BaseOTSender};
-    use communication::corrupted::CorruptedChannel;
+    use communication::sync::corrupted::CorruptedChannel;
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::thread;
