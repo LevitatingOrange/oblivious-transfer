@@ -26,8 +26,9 @@ stdweb = {version="0.4.4"}
 
 [target.'cfg(not(all(target_arch="wasm32", target_os="unknown")))'.dependencies]
 rust_sodium = "0.8.0"
-tungstenite = "0.5.3"
 rust_sodium-sys = "0.8.1"
+tungstenite = "0.5.3"
+tokio-tungstenite = "0.2.1"
 #TODO: wait for next version to correctly import futures
 tokio = {git = "https://github.com/tokio-rs/tokio", features = ["futures2"]}
 futures = "0.2.0"

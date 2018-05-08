@@ -113,7 +113,7 @@ impl<
         // TODO: make this idiomatic, compute_keys, is copy ok here?
         for (key, value) in keys.into_iter().zip(values) {
             let mut buf = value.to_owned();
-            self.encryptor.encrypt(key, &mut buf);
+            self.encryptor.encrypt(&key, &mut buf);
             self.conn.send(&buf)?;
         }
         Ok(())
@@ -195,7 +195,7 @@ impl<
         for _ in 0..n {
             buffers.push(self.conn.receive()?);
         }
-        self.decryptor.decrypt(key, &mut (buffers[index as usize]));
+        self.decryptor.decrypt(&key, &mut (buffers[index as usize]));
         Ok(buffers.remove(index as usize))
     }
 }

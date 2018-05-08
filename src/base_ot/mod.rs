@@ -2,6 +2,7 @@ use errors::*;
 use std::vec::Vec;
 
 pub mod chou_async;
+//pub mod chou;
 pub mod dummy;
 
 pub trait BaseOTSender {

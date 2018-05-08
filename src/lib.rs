@@ -4,6 +4,7 @@
 
 extern crate tokio;
 extern crate futures;
+extern crate tungstenite;
 
 extern crate curve25519_dalek;
 extern crate digest;
@@ -16,8 +17,6 @@ extern crate sha3;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate rust_sodium;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-extern crate tungstenite;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 extern crate stdweb;

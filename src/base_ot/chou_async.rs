@@ -208,6 +208,7 @@ impl<
     }
 
     // TODO: Return Self, don't specify size?
+    // TODO: index shouln't be 0
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
         self.compute_key(c as u64).and_then(move |(s, key)| {
             let state = (s, 0, key);
@@ -229,7 +230,7 @@ impl<
                 } else {
                     None
                 }
-            }).collect().map(move |mut vals| vals.remove((n-1)-c)).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
+            }).collect().map(move |mut vals| vals.remove((n-1)-c)).map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
         })
     }
 }
@@ -259,7 +260,7 @@ mod tests {
     fn chou_ot_key_exchange() {
         let index: u64 = 3;
         let num: u64 = 10;
-        let addr = "127.0.0.1:1236".parse().unwrap();
+        let addr = "127.0.0.1:1136".parse().unwrap();
         let server = TcpListener::bind(&addr)
             .unwrap()
             .incoming().take(1)
@@ -303,7 +304,7 @@ mod tests {
         let l = 10;
         let c = thread_rng().gen_range(0, n);
 
-        let addr = "127.0.0.1:1237".parse().unwrap();
+        let addr = "127.0.0.1:1137".parse().unwrap();
         let server = TcpListener::bind(&addr)
             .unwrap()
             .incoming().take(1)
