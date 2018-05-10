@@ -1,16 +1,16 @@
+use communication::sync::{BinaryReceive, BinarySend};
+use crypto::{SymmetricDecryptor, SymmetricEncryptor};
+use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
+use curve25519_dalek::edwards::*;
+use curve25519_dalek::scalar::*;
+use digest::Digest;
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 use errors::*;
-use rand::Rng;
-use curve25519_dalek::edwards::*;
-use curve25519_dalek::scalar::*;
-use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
-use std::vec::Vec;
-use std::iter::Iterator;
-use digest::Digest;
 use generic_array::{ArrayLength, GenericArray};
-use crypto::{SymmetricDecryptor, SymmetricEncryptor};
-use communication::sync::{BinaryReceive, BinarySend};
+use rand::Rng;
+use std::iter::Iterator;
+use std::vec::Vec;
 
 pub struct ChouOrlandiOTSender<T, D, L, S>
 where
@@ -52,11 +52,11 @@ where
 // TODO: parallelize the protocol
 
 impl<
-    T: BinarySend + BinaryReceive,
-    D: Digest<OutputSize = L> + Clone,
-    L: ArrayLength<u8>,
-    S: SymmetricEncryptor<L>,
-> ChouOrlandiOTSender<T, D, L, S>
+        T: BinarySend + BinaryReceive,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricEncryptor<L>,
+    > ChouOrlandiOTSender<T, D, L, S>
 {
     pub fn new<R>(mut conn: T, mut hasher: D, encryptor: S, rng: &mut R) -> Result<Self>
     where
@@ -100,13 +100,12 @@ impl<
     }
 }
 
-
 impl<
-    T: BinaryReceive + BinarySend,
-    D: Digest<OutputSize = L> + Clone,
-    L: ArrayLength<u8>,
-    S: SymmetricEncryptor<L>,
-> super::BaseOTSender for ChouOrlandiOTSender<T, D, L, S>
+        T: BinaryReceive + BinarySend,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricEncryptor<L>,
+    > super::BaseOTSender for ChouOrlandiOTSender<T, D, L, S>
 {
     fn send(&mut self, values: Vec<&[u8]>) -> Result<()> {
         let keys = self.compute_keys(values.len() as u64)?;
@@ -136,12 +135,12 @@ where
 }
 
 impl<
-    T: BinaryReceive + BinarySend,
-    R: Rng,
-    D: Digest<OutputSize = L> + Clone,
-    L: ArrayLength<u8>,
-    S: SymmetricDecryptor<L>,
-> ChouOrlandiOTReceiver<T, R, D, L, S>
+        T: BinaryReceive + BinarySend,
+        R: Rng,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricDecryptor<L>,
+    > ChouOrlandiOTReceiver<T, R, D, L, S>
 {
     pub fn new(mut conn: T, mut hasher: D, decryptor: S, rng: R) -> Result<Self> {
         let mut s = receive_point(&mut conn)?;
@@ -181,12 +180,12 @@ impl<
 }
 
 impl<
-    T: BinaryReceive + BinarySend,
-    R: Rng,
-    D: Digest<OutputSize = L> + Clone,
-    L: ArrayLength<u8>,
-    S: SymmetricDecryptor<L>,
-> super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, L, S>
+        T: BinaryReceive + BinarySend,
+        R: Rng,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricDecryptor<L>,
+    > super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, L, S>
 {
     fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>> {
         let key = self.compute_key(index)?;
@@ -202,20 +201,20 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use rand::OsRng;
     use super::*;
     use base_ot::{BaseOTReceiver, BaseOTSender};
     use communication::sync::corrupted::CorruptedChannel;
+    use crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider};
+    use rand::OsRng;
+    use rand::{thread_rng, Rng};
+    use sha3::Sha3_256;
     use std::net::TcpListener;
     use std::net::TcpStream;
-    use std::thread;
-    use sha3::Sha3_256;
-    use crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider};
-    use rand::{thread_rng, Rng};
     use std::sync::Arc;
+    use std::thread;
     use std::time::Duration;
-    use tungstenite::server::accept;
     use tungstenite::client::connect;
+    use tungstenite::server::accept;
     use url::Url;
 
     fn create_random_strings(n: usize, l: usize) -> Vec<String> {
@@ -229,40 +228,44 @@ mod tests {
     }
 
     macro_rules! generate_communication_test {
-        ( $client_conn:expr, $server_conn:expr, $digest:expr, $enc:expr, $dec:expr) => {
-        let n: usize = 10;
-        let l = 512;
-        let c: u64 = thread_rng().gen_range(0, n as u64);
+        ($client_conn:expr, $server_conn:expr, $digest:expr, $enc:expr, $dec:expr) => {
+            let n: usize = 10;
+            let l = 512;
+            let c: u64 = thread_rng().gen_range(0, n as u64);
 
-        let values = Arc::new(create_random_strings(n, l));
-        let vals = Arc::clone(&values);
-        let vals2 = Arc::clone(&values);
+            let values = Arc::new(create_random_strings(n, l));
+            let vals = Arc::clone(&values);
+            let vals2 = Arc::clone(&values);
 
-        let server = thread::spawn(move || {
-            let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
+            let server = thread::spawn(move || {
+                let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
 
-            let mut ot = ChouOrlandiOTSender::new(
-                $client_conn,
-                $digest,
-                $enc,
-                &mut OsRng::new().unwrap(),
-            ).unwrap();
-            ot.send(vals).unwrap()
-        });
-        let client = thread::spawn(move || {
-            // TODO: make this better
-            thread::sleep(Duration::new(1, 0));
-            let mut ot = ChouOrlandiOTReceiver::new(
-                $server_conn,
-                $digest,
-                $dec,
-                OsRng::new().unwrap(),
-            ).unwrap();
-            ot.receive(c, n).unwrap()
-        });
-        let _ = server.join().unwrap();
-        let result = String::from_utf8(client.join().unwrap()).unwrap();
-        assert_eq!(result, vals2[c as usize], "result incorrect with following index: {} and values: {:?}", c, values);
+                let mut ot = ChouOrlandiOTSender::new(
+                    $client_conn,
+                    $digest,
+                    $enc,
+                    &mut OsRng::new().unwrap(),
+                ).unwrap();
+                ot.send(vals).unwrap()
+            });
+            let client = thread::spawn(move || {
+                // TODO: make this better
+                thread::sleep(Duration::new(1, 0));
+                let mut ot = ChouOrlandiOTReceiver::new(
+                    $server_conn,
+                    $digest,
+                    $dec,
+                    OsRng::new().unwrap(),
+                ).unwrap();
+                ot.receive(c, n).unwrap()
+            });
+            let _ = server.join().unwrap();
+            let result = String::from_utf8(client.join().unwrap()).unwrap();
+            assert_eq!(
+                result, vals2[c as usize],
+                "result incorrect with following index: {} and values: {:?}",
+                c, values
+            );
         };
     }
 

@@ -1,7 +1,8 @@
 use errors::*;
 use std::vec::Vec;
 
-pub mod chou_async;
+//pub mod chou_async;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod chou;
 pub mod dummy;
 

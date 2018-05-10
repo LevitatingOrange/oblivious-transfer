@@ -31,7 +31,6 @@ tungstenite = "0.5.3"
 tokio-tungstenite = "0.2.1"
 #TODO: wait for next version to correctly import futures
 tokio = {git = "https://github.com/tokio-rs/tokio", features = ["futures2"]}
-futures = "0.2.0"
 
 [dependencies]
 #TODO: nightly for faster field elements
@@ -45,5 +44,6 @@ error-chain = "0.11.0"
 generic-array = "0.9.0"
 url = "1.5.1"
 structopt = "0.2"
+futures = "0.2.0"
 
 #block_cipher_trait = "0.5.0"

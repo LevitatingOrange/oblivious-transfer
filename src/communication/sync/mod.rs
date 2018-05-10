@@ -2,7 +2,6 @@ use errors::*;
 use std::vec::Vec;
 
 pub mod corrupted;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod tcp;
 pub mod websockets;
 
