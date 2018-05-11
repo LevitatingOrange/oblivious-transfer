@@ -12,7 +12,8 @@ fn main() {
     stdweb::initialize();
 
     let msg = "Hello World".to_owned();
-    let future = WasmWebSocket::open("ws://127.0.0.1:3012").unwrap()
+    let future = WasmWebSocket::open("ws://127.0.0.1:3012")
+        .unwrap()
         .and_then(|ws| {
             let lock = ws.lock().unwrap();
             lock.write(msg.into_bytes())
@@ -21,8 +22,8 @@ fn main() {
             let lock = ws.lock().unwrap();
             lock.read()
         })
-        .map(|(_, result)| {console!(log, String::from_utf8(result).unwrap())})
+        .map(|(_, result)| console!(log, String::from_utf8(result).unwrap()))
         .map_err(|e| PromiseFuture::print_error_panic(e.description()));
-        PromiseFuture::spawn_local(future);
+    PromiseFuture::spawn_local(future);
     stdweb::event_loop();
 }

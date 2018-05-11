@@ -4,11 +4,13 @@ use futures::prelude::*;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, Weak};
 use std::vec::Vec;
-use stdweb::{console, __internal_console_unsafe, js, _js_impl, __js_raw_asm};
 use stdweb::traits::*;
+use stdweb::web::SocketBinaryType;
+use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
-use stdweb::web::{TypedArray};
+use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
+use stdweb::web::event::SocketMessageData;
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
 pub struct WasmWebSocket {
@@ -31,37 +33,39 @@ impl WasmWebSocket {
             open: false,
         }));
         {
-        let mut me = s.lock().unwrap();
-        me.me = Arc::downgrade(&s);
+            let mut me = s.lock().unwrap();
+            me.me = Arc::downgrade(&s);
 
-        let handle0 = s.clone();
-        let handle1 = s.clone();
-        let handle2 = s.clone();
-        me.ws.add_event_listener(move |_: SocketOpenEvent| {
-            if let Ok(ref mut me) = handle0.lock() {
-                me.open = true;
-                //me.wakers.iter().for_each(|waker| waker.wake());
-                if let Some(ref waker) = me.waker {
-                    waker.wake();
-                }
-            }
-        });
-        me.ws.add_event_listener(move |event: SocketMessageEvent| {
-            let data = event.data();
-            if let Some(arr) = data.into_array_buffer() {
-                if let Ok(ref mut me) = handle1.lock() {
-                    let buf: TypedArray<u8> = TypedArray::from(arr);
-                    if let Ok(ref mut msg_queue) = me.msg_queue {
-                        msg_queue.push_back(buf.to_vec());
-                    }
+            let handle0 = s.clone();
+            let handle1 = s.clone();
+            let handle2 = s.clone();
+            me.ws.add_event_listener(move |_: SocketOpenEvent| {
+                if let Ok(ref mut me) = handle0.lock() {
+                    me.open = true;
                     //me.wakers.iter().for_each(|waker| waker.wake());
                     if let Some(ref waker) = me.waker {
                         waker.wake();
                     }
                 }
-            }
-        });
-        me.ws.add_event_listener(move |event: SocketCloseEvent| {
+            });
+            me.ws.add_event_listener(move |event: SocketMessageEvent| {
+                let data = event.data();
+                if let Ok(ref mut me) = handle1.lock() {
+                    if let Some(arr) = data.into_array_buffer() {
+                        let buf: TypedArray<u8> = TypedArray::from(arr);
+                        if let Ok(ref mut msg_queue) = me.msg_queue {
+                            msg_queue.push_back(buf.to_vec());
+                        }
+                        //me.wakers.iter().for_each(|waker| waker.wake());
+                    } else {
+                        me.msg_queue = Err("Did not receive binary data!".into());
+                    }
+                    if let Some(ref waker) = me.waker {
+                        waker.wake();
+                    }
+                }
+            });
+            me.ws.add_event_listener(move |event: SocketCloseEvent| {
                 if let Ok(ref mut me) = handle2.lock() {
                     me.msg_queue = Err(event.reason().into());
                     //me.wakers.iter().for_each(|waker| waker.wake());
@@ -69,19 +73,23 @@ impl WasmWebSocket {
                         waker.wake();
                     }
                 }
-        });
+            });
         }
         s
     }
 
     pub fn open(address: &str) -> Result<WasmWebSocketOpen> {
-        let socket = WebSocket::new(address).map_err(|e| Error::with_chain(e, "Could not open websocket"))?;
+        let socket =
+            WebSocket::new(address).map_err(|e| Error::with_chain(e, "Could not open websocket"))?;
+        socket.set_binary_type(SocketBinaryType::ArrayBuffer);
         let ws = Self::new(socket);
         Ok(WasmWebSocketOpen { ws: ws })
     }
 
     pub fn read(&self) -> WasmWebSocketRead {
-        WasmWebSocketRead { ws: self.me.upgrade().unwrap().clone() }
+        WasmWebSocketRead {
+            ws: self.me.upgrade().unwrap().clone(),
+        }
     }
     pub fn write(&self, buffer: Vec<u8>) -> WasmWebSocketWrite {
         WasmWebSocketWrite {
@@ -99,7 +107,7 @@ impl Drop for WasmWebSocket {
 }
 
 pub struct WasmWebSocketOpen {
-    ws: Arc<Mutex<WasmWebSocket>>
+    ws: Arc<Mutex<WasmWebSocket>>,
 }
 
 impl Future for WasmWebSocketOpen {
@@ -134,11 +142,9 @@ impl Future for WasmWebSocketRead {
             // it has to go out of scope first
 
             let value = match ws.msg_queue {
-                Ok(ref mut msg_queue) => {
-                    msg_queue.pop_front()
-                }
+                Ok(ref mut msg_queue) => msg_queue.pop_front(),
                 // return returned error
-                Err(_) => {return Err("Couldn't read from web socket".into())}
+                Err(_) => return Err("Couldn't read from web socket".into()),
             };
             if let Some(buf) = value {
                 ws.waker = None;
@@ -147,7 +153,6 @@ impl Future for WasmWebSocketRead {
                 ws.waker = Some(cx.waker().clone());
                 return Ok(Async::Pending);
             }
-
         } else {
             bail!("Internal error, couldn't access websocket value. This should not happen")
         }
