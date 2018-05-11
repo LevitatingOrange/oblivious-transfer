@@ -5,7 +5,6 @@ extern crate ot;
 
 use futures::prelude::*;
 use stdweb::PromiseFuture;
-//use stdweb::webcore::promise_future::PromiseFuture;
 use ot::communication::async::websockets::*;
 
 fn main() {

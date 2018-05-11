@@ -2,13 +2,17 @@
 #![feature(proc_macro, generators)]
 #![feature(iterator_flatten)]
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-extern crate tokio;
+// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+// extern crate tokio;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 extern crate futures;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate tungstenite;
+
+#[macro_use]
+extern crate arrayref;
 
 extern crate curve25519_dalek;
 extern crate digest;
