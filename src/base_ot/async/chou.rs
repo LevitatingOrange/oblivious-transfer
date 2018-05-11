@@ -9,26 +9,23 @@ use digest::Digest;
 use errors::*;
 use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
-use tokio::io::{read_exact, write_all};
-use tokio::prelude::*;
-
+use communication::async::websockets::*;
+use futures::prelude::*;
+use futures::stream::unfold;
 use std::mem::transmute;
 
 fn send_point<T>(conn: T, point: EdwardsPoint) -> impl Future<Item = T, Error = Error>
-where
-    T: AsyncWrite,
+where T: AsyncWrite
 {
-    write_all(conn, point.compress().as_bytes().clone())
+    conn.write(point.compress().as_bytes().clone())
         .map_err(|e| Error::with_chain(e, "Error while sending point"))
         .map(|(conn, _)| conn)
 }
 
 fn receive_point<T>(conn: T) -> impl Future<Item = (EdwardsPoint, T), Error = Error>
-where
-    T: AsyncRead,
+where T: AsyncRead
 {
-    let v: [u8; 32] = Default::default();
-    read_exact(conn, v)
+    conn.read()
         .map_err(move |e| Error::with_chain(e, "Error while receiving point"))
         .and_then(|(conn, buf)| {
             CompressedEdwardsY(buf)
@@ -118,7 +115,7 @@ impl<
     pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
         self.compute_keys(values.len() as u64).and_then(move |(s, keys)| {
             let state = (s, keys.into_iter().zip(values).collect());
-            stream::unfold(state, |(mut s, mut kv):(Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
+            unfold(state, |(mut s, mut kv):(Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
                 let conn = s.conn.take().unwrap();
                 if let Some((key, mut value)) = kv.pop() {
                     let bytes: [u8; 8] = unsafe {transmute((value.len() as u64).to_be())};
@@ -212,7 +209,7 @@ impl<
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
         self.compute_key(c as u64).and_then(move |(s, key)| {
             let state = (s, 0, key);
-            stream::unfold(state, move |(mut s, i, key):(Self, usize, GenericArray<u8, L>)| {
+            unfold(state, move |(mut s, i, key):(Self, usize, GenericArray<u8, L>)| {
                 let conn = s.conn.take().unwrap();
                 if i < n {
                     let bytes: [u8; 8] = Default::default();
