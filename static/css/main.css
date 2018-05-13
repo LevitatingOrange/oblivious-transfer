@@ -1,11 +1,58 @@
-div {
+body {
+    background: #e2e1e0;
+    font-family: 'Lato', sans-serif;
+}
+
+.ot {
+    width: 100%;
+    top: 0px;
+    left: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+    background: #fff;
+    margin-bottom: 10px;    
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+.row {
     padding: 5px;
+    width: 300px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.connect {
+    border: solid;
+    border-width: 1px;
+    border-color: #F00;
+    transition: border 0.5 ease-in;
+}
+
+.connected {
+    border-color: rgb(0, 255, 0);
+}
+
+.error-display {
+    border: solid;
+    border-width: 1px;
+    border-color: #F00;
 }
 
 .error {
-    border: solid;
-    border-width: 1px;
-    border-color: red;
     transition: opacity 0.5s ease-in;
     opacity: 0;
 }

@@ -14,7 +14,7 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::sync::{Arc, Mutex};
 
-//use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
+use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
 // TODO use traits
 fn send_point(
@@ -117,8 +117,10 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
     }
 
     // TODO: return Self
+    // TODO: should the values be owned?
     pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
         self.compute_keys(values.len() as u64)
+            .map_err(|e| Error::with_chain(e, "Error computing keys"))
             .and_then(move |(s, keys)| {
                 let state = (s, keys.into_iter().zip(values).rev().collect());
                 let stream = stream::unfold(
@@ -210,32 +212,34 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
     // TODO: Return Self, don't specify size?
     // TODO: index shouln't be 0
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
-        self.compute_key(c as u64).and_then(move |(s, key)| {
-            let state = (s, 0, key);
-            stream::unfold(
-                state,
-                move |(mut s, i, key): (Self, usize, GenericArray<u8, L>)| {
-                    let conn = s.conn.clone();
-                    if i < n {
-                        let fut = conn.lock().unwrap().read().map(move |(_, mut buf)| {
-                            s.decryptor.decrypt(&key, &mut buf);
-                            (buf, (s, i + 1, key))
-                        });
-                        Some(fut)
-                    } else {
-                        None
-                    }
-                },
-            ).collect()
-                .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
-                .and_then(move |mut vals: Vec<Vec<u8>>| {
-                    if c < n {
-                        Ok(vals.remove(c))
-                    } else {
-                        Err("index out of bounds".into())
-                    }
-                })
-        })
+        self.compute_key(c as u64)
+            .map_err(|e| Error::with_chain(e, "Error computing keys"))
+            .and_then(move |(s, key)| {
+                let state = (s, 0, key);
+                stream::unfold(
+                    state,
+                    move |(mut s, i, key): (Self, usize, GenericArray<u8, L>)| {
+                        let conn = s.conn.clone();
+                        if i < n {
+                            let fut = conn.lock().unwrap().read().map(move |(_, mut buf)| {
+                                s.decryptor.decrypt(&key, &mut buf);
+                                (buf, (s, i + 1, key))
+                            });
+                            Some(fut)
+                        } else {
+                            None
+                        }
+                    },
+                ).collect()
+                    .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
+                    .and_then(move |mut vals: Vec<Vec<u8>>| {
+                        if c < n {
+                            Ok(vals.remove(c))
+                        } else {
+                            Err("index out of bounds".into())
+                        }
+                    })
+            })
     }
 }
 

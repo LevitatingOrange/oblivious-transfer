@@ -19,7 +19,7 @@ where
     L: ArrayLength<u8>,
     S: SymmetricEncryptor<L>,
 {
-    conn: T,
+    pub conn: T,
     hasher: D,
     encryptor: S,
     y: Scalar,
@@ -127,7 +127,7 @@ where
     L: ArrayLength<u8>,
     S: SymmetricDecryptor<L>,
 {
-    conn: T,
+    pub conn: T,
     hasher: D,
     decryptor: S,
     rng: R,
@@ -144,7 +144,6 @@ impl<
 {
     pub fn new(mut conn: T, mut hasher: D, decryptor: S, rng: R) -> Result<Self> {
         let mut s = receive_point(&mut conn)?;
-
         // as we've added a point from the eight torsion subgroup to s before sending,
         // by multiplying with the cofactor (i.e. 8, i.e. the order of the eight torsion subgroup)
         // we get [8]s and can be sure that the received value is indeed in the subgroup
@@ -187,8 +186,8 @@ impl<
         S: SymmetricDecryptor<L>,
     > super::BaseOTReceiver for ChouOrlandiOTReceiver<T, R, D, L, S>
 {
-    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>> {
-        let key = self.compute_key(index)?;
+    fn receive(&mut self, index: usize, n: usize) -> Result<Vec<u8>> {
+        let key = self.compute_key(index as u64)?;
         // TODO make this more idiomatic?
         let mut buffers: Vec<Vec<u8>> = Default::default();
         for _ in 0..n {

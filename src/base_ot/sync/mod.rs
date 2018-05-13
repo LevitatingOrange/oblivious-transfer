@@ -11,5 +11,5 @@ pub trait BaseOTSender {
 // transmitted in clear and could be altered
 // either encrypt it or specify l here which we compare to
 pub trait BaseOTReceiver {
-    fn receive(&mut self, index: u64, n: usize) -> Result<Vec<u8>>;
+    fn receive(&mut self, index: usize, n: usize) -> Result<Vec<u8>>;
 }

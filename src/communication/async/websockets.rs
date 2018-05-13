@@ -90,6 +90,8 @@ impl WasmWebSocket {
             ws: self.me.upgrade().unwrap().clone(),
         }
     }
+    // TODO: should the values be owned? Maybe use bytes crate
+    // just sending references is not possible because of the way futures work
     pub fn write(&self, buffer: Vec<u8>) -> WasmWebSocketWrite {
         WasmWebSocketWrite {
             ws: self.me.upgrade().unwrap().clone(),
