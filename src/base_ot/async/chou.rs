@@ -120,7 +120,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
     pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
         self.compute_keys(values.len() as u64)
             .and_then(move |(s, keys)| {
-                let state = (s, keys.into_iter().zip(values).collect());
+                let state = (s, keys.into_iter().zip(values).rev().collect());
                 let stream = stream::unfold(
                     state,
                     |(mut s, mut kv): (Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
@@ -227,8 +227,14 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
                     }
                 },
             ).collect()
-                .map(move |mut vals: Vec<Vec<u8>>| vals.remove((n - 1) - c))
                 .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
+                .and_then(move |mut vals: Vec<Vec<u8>>| {
+                    if c < n {
+                        Ok(vals.remove(c))
+                    } else {
+                        Err("index out of bounds".into())
+                    }
+                })
         })
     }
 }

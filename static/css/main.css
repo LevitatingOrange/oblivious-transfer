@@ -1,0 +1,25 @@
+div {
+    padding: 5px;
+}
+
+.error {
+    border: solid;
+    border-width: 1px;
+    border-color: red;
+    transition: opacity 0.5s ease-in;
+    opacity: 0;
+}
+
+.error-visible {
+    opacity: 1;
+}
+
+li {
+    opacity: 1;
+    animation: fade 0.5s ease-in;
+}
+
+@keyframes fade {
+    0% { opacity: 0 }
+    100% { opacity: 1 }
+}

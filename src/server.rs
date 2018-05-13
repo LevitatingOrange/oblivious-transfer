@@ -5,15 +5,15 @@ extern crate rand;
 extern crate sha3;
 extern crate tungstenite;
 
-use ot::crypto::dummy::DummyCryptoProvider;
 use ot::base_ot::sync::chou::ChouOrlandiOTSender;
 use ot::base_ot::sync::BaseOTSender;
+use ot::crypto::dummy::DummyCryptoProvider;
 use rand::OsRng;
 use sha3::Sha3_256;
-use structopt::StructOpt;
 use std::net::TcpListener;
-use std::thread::spawn;
 use std::sync::{Arc, Mutex};
+use std::thread::spawn;
+use structopt::StructOpt;
 use tungstenite::handshake::server::Request;
 use tungstenite::server::accept_hdr;
 
@@ -31,28 +31,41 @@ fn main() {
     let server = TcpListener::bind(&args.lock().unwrap().address).unwrap();
     for stream in server.incoming() {
         let args = args.clone();
-                    let callback = |req: &Request| {
-                println!("Received a new ws handshake");
-                println!("The request's path is: {}", req.path);
-                println!("The request's headers are:");
-                for &(ref header, _ /* value */) in req.headers.iter() {
-                    println!("* {}", header);
-                }
+        let callback = |req: &Request| {
+            println!("Received a new ws handshake");
+            println!("The request's path is: {}", req.path);
+            println!("The request's headers are:");
+            for &(ref header, _ /* value */) in req.headers.iter() {
+                println!("* {}", header);
+            }
 
-                // Let's add an additional header to our response to the client.
-                let extra_headers = vec![
-                    (String::from("MyCustomHeader"), String::from(":)")),
-                    (String::from("SOME_TUNGSTENITE_HEADER"), String::from("header_value")),
-                ];
-                Ok(Some(extra_headers))
-            };
+            // TODO: for better example decide based on the subprotocol if you send or receive
+            let extra_headers = vec![(
+                String::from("Sec-WebSocket-Protocol"),
+                String::from("ot_receive"),
+            )];
+            Ok(Some(extra_headers))
+        };
         spawn(move || {
-            let mut sender = ChouOrlandiOTSender::new(accept_hdr(stream.unwrap(), callback).unwrap(), Sha3_256::default(), DummyCryptoProvider::default(), &mut OsRng::new().unwrap()).unwrap();
-            sender.send(args.lock().unwrap().values.iter().map(|s| {
-                let bytes = s.as_bytes();
-                println!("{:?}", bytes);
-                bytes
-            }).collect()).unwrap();
+            let mut sender = ChouOrlandiOTSender::new(
+                accept_hdr(stream.unwrap(), callback).unwrap(),
+                Sha3_256::default(),
+                DummyCryptoProvider::default(),
+                &mut OsRng::new().unwrap(),
+            ).unwrap();
+            sender
+                .send(
+                    args.lock()
+                        .unwrap()
+                        .values
+                        .iter()
+                        .map(|s| {
+                            let bytes = s.as_bytes();
+                            bytes
+                        })
+                        .collect(),
+                )
+                .unwrap();
             //println!("{:?}", sender.compute_keys(10));
         });
     }

@@ -12,6 +12,9 @@ use stdweb::web::WebSocket;
 use stdweb::web::event::SocketMessageData;
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
+//use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
+
+
 pub struct WasmWebSocket {
     me: Weak<Mutex<WasmWebSocket>>,
     ws: WebSocket,
@@ -55,7 +58,7 @@ impl WasmWebSocket {
                         if let Ok(ref mut msg_queue) = me.msg_queue {
                             msg_queue.push_back(buf.to_vec());
                         }
-                        //me.wakers.iter().for_each(|waker| waker.wake());
+                    //me.wakers.iter().for_each(|waker| waker.wake());
                     } else {
                         me.msg_queue = Err("Did not receive binary data!".into());
                     }
@@ -77,12 +80,10 @@ impl WasmWebSocket {
         s
     }
 
-    pub fn open(address: &str) -> Result<WasmWebSocketOpen> {
-        let socket =
-            WebSocket::new(address).map_err(|e| Error::with_chain(e, "Could not open websocket"))?;
+    pub fn open(socket: WebSocket) -> WasmWebSocketOpen {
         socket.set_binary_type(SocketBinaryType::ArrayBuffer);
         let ws = Self::new(socket);
-        Ok(WasmWebSocketOpen { ws: ws })
+        WasmWebSocketOpen { ws: ws }
     }
 
     pub fn read(&self) -> WasmWebSocketRead {
@@ -101,6 +102,7 @@ impl WasmWebSocket {
 impl Drop for WasmWebSocket {
     fn drop(&mut self) {
         // TODO what if ws is already closed? Does this blow up?
+        // TODO doesnt get called
         self.ws.close();
     }
 }
