@@ -53,12 +53,10 @@ fn main() {
                 DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
+            let vals = args.lock().unwrap().values.to_owned();
             sender
                 .send(
-                    args.lock()
-                        .unwrap()
-                        .values
-                        .iter()
+                    vals.iter()
                         .map(|s| {
                             let bytes = s.as_bytes();
                             bytes
@@ -66,6 +64,7 @@ fn main() {
                         .collect(),
                 )
                 .unwrap();
+
             //println!("{:?}", sender.compute_keys(10));
         });
     }

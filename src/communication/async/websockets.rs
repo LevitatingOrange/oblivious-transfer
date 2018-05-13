@@ -12,8 +12,7 @@ use stdweb::web::WebSocket;
 use stdweb::web::event::SocketMessageData;
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
-//use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
-
+use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
 pub struct WasmWebSocket {
     me: Weak<Mutex<WasmWebSocket>>,
@@ -102,7 +101,7 @@ impl WasmWebSocket {
 impl Drop for WasmWebSocket {
     fn drop(&mut self) {
         // TODO what if ws is already closed? Does this blow up?
-        // TODO doesnt get called
+        // TODO doesnt get called in browser example
         self.ws.close();
     }
 }
