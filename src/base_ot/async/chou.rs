@@ -1,3 +1,4 @@
+use communication::async::websockets::*;
 use crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
@@ -7,31 +8,39 @@ use digest::Digest;
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 /// TODO: make this parallel
 use errors::*;
-use generic_array::{ArrayLength, GenericArray};
-use rand::Rng;
-use communication::async::websockets::*;
 use futures::prelude::*;
 use futures::stream;
+use generic_array::{ArrayLength, GenericArray};
+use rand::Rng;
 use std::sync::{Arc, Mutex};
 
-// TODO use traits 
-fn send_point(conn: Arc<Mutex<WasmWebSocket>>, point: EdwardsPoint) -> impl Future<Item = (), Error = Error>
-{
-    conn.lock().unwrap().write(point.compress().as_bytes().to_vec())
+//use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
+
+// TODO use traits
+fn send_point(
+    conn: Arc<Mutex<WasmWebSocket>>,
+    point: EdwardsPoint,
+) -> impl Future<Item = (), Error = Error> {
+    conn.lock()
+        .unwrap()
+        .write(point.compress().as_bytes().to_vec())
         .map(|_| ())
         .map_err(|e| Error::with_chain(e, "Error while sending point"))
 }
 
-fn receive_point(conn: Arc<Mutex<WasmWebSocket>>) -> impl Future<Item = EdwardsPoint, Error = Error>
-{
-    conn.lock().unwrap().read()
+fn receive_point(
+    conn: Arc<Mutex<WasmWebSocket>>,
+) -> impl Future<Item = EdwardsPoint, Error = Error> {
+    conn.lock()
+        .unwrap()
+        .read()
         .map_err(move |e| Error::with_chain(e, "Error while receiving point"))
         .and_then(|(_, buf)| {
             if buf.len() != 32 {
-                return Err("Did not receive exactly 32 bytes for point".into())
+                return Err("Did not receive exactly 32 bytes for point".into());
             }
-            // Copy here is inefficient, as we already own buf and do not return it 
-            CompressedEdwardsY(array_ref![buf,0,32].clone())
+            // Copy here is inefficient, as we already own buf and do not return it
+            CompressedEdwardsY(array_ref![buf, 0, 32].clone())
                 .decompress()
                 .ok_or(ErrorKind::PointError.into())
         })
@@ -51,11 +60,8 @@ where
     t64: EdwardsPoint,
 }
 
-impl<
-        D: Digest<OutputSize = L> + Clone,
-        L: ArrayLength<u8>,
-        S: SymmetricEncryptor<L>,
-    > ChouOrlandiOTSender<D, L, S>
+impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
+    ChouOrlandiOTSender<D, L, S>
 {
     pub fn new<R>(
         conn: Arc<Mutex<WasmWebSocket>>,
@@ -112,22 +118,31 @@ impl<
 
     // TODO: return Self
     pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
-        self.compute_keys(values.len() as u64).and_then(move |(s, keys)| {
-            let state = (s, keys.into_iter().zip(values).collect());
-            let stream = stream::unfold(state, |(mut s, mut kv):(Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
-                let conn = s.conn.clone();
-                if let Some((key, mut value)) = kv.pop() {
-                    s.encryptor.encrypt(&key, &mut value);
-                    Some(conn.lock().unwrap().write(value)
-                    .map(move |_| {
-                        ((), (s, kv))
-                    }))
-                } else {
-                    None
-                }
-            });
-            stream.collect().map(|_:Vec<()>| ()).map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
-        })
+        self.compute_keys(values.len() as u64)
+            .and_then(move |(s, keys)| {
+                let state = (s, keys.into_iter().zip(values).collect());
+                let stream = stream::unfold(
+                    state,
+                    |(mut s, mut kv): (Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
+                        let conn = s.conn.clone();
+                        if let Some((key, mut value)) = kv.pop() {
+                            s.encryptor.encrypt(&key, &mut value);
+                            Some(
+                                conn.lock()
+                                    .unwrap()
+                                    .write(value)
+                                    .map(move |_| ((), (s, kv))),
+                            )
+                        } else {
+                            None
+                        }
+                    },
+                );
+                stream
+                    .collect()
+                    .map(|_: Vec<()>| ())
+                    .map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
+            })
     }
 }
 
@@ -146,12 +161,8 @@ where
     s8: EdwardsPoint,
 }
 
-impl<
-        R: Rng,
-        D: Digest<OutputSize = L> + Clone,
-        L: ArrayLength<u8>,
-        S: SymmetricDecryptor<L>,
-    > ChouOrlandiOTReceiver<R, D, L, S>
+impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricDecryptor<L>>
+    ChouOrlandiOTReceiver<R, D, L, S>
 {
     pub fn new(
         conn: Arc<Mutex<WasmWebSocket>>,
@@ -201,19 +212,23 @@ impl<
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
         self.compute_key(c as u64).and_then(move |(s, key)| {
             let state = (s, 0, key);
-            stream::unfold(state, move |(mut s, i, key):(Self, usize, GenericArray<u8, L>)| {
-                let conn = s.conn.clone();
-                if i < n {
-                    let fut = conn.lock().unwrap().read()
-                    .map(move |(_, mut buf)| {
-                        s.decryptor.decrypt(&key, &mut buf);
-                        (buf, (s, i+1, key))
-                    });
-                    Some(fut)
-                } else {
-                    None
-                }
-            }).collect().map(move |mut vals:Vec<Vec<u8>>| vals.remove((n-1)-c)).map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
+            stream::unfold(
+                state,
+                move |(mut s, i, key): (Self, usize, GenericArray<u8, L>)| {
+                    let conn = s.conn.clone();
+                    if i < n {
+                        let fut = conn.lock().unwrap().read().map(move |(_, mut buf)| {
+                            s.decryptor.decrypt(&key, &mut buf);
+                            (buf, (s, i + 1, key))
+                        });
+                        Some(fut)
+                    } else {
+                        None
+                    }
+                },
+            ).collect()
+                .map(move |mut vals: Vec<Vec<u8>>| vals.remove((n - 1) - c))
+                .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
         })
     }
 }
@@ -273,7 +288,6 @@ impl<
 //             .map(|(_, result)| result)
 //             .map_err(|err| eprintln!("Receiver Error: {}", err));
 
-
 //         tokio::run(server.join(client).map(move |(k, key)| {
 //             let keys = k.unwrap();
 //             assert_eq!(num, keys.len() as u64);
@@ -319,7 +333,6 @@ impl<
 //             .and_then(move |r| r.receive(c, n))
 //             .map_err(|err| eprintln!("Receiver Error: {}", err));
 
-
 //         tokio::run(server.join(client).map(move |(set, actual)| {
 //             assert_eq!(set.unwrap(), actual);
 //             // let keys = k.unwrap();
@@ -327,5 +340,5 @@ impl<
 //             // assert_eq!(keys[index as usize], key);
 //         }));
 //     }
-    
+
 // }

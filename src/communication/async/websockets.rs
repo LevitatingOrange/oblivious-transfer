@@ -8,6 +8,8 @@ use stdweb::traits::*;
 use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
+
+use stdweb::web::event::SocketMessageData;
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
 pub struct WasmWebSocket {

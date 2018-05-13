@@ -81,7 +81,7 @@ impl<
         })
     }
 
-    fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, L>>> {
+    pub fn compute_keys(&mut self, n: u64) -> Result<Vec<GenericArray<u8, L>>> {
         let mut hasher = self.hasher.clone();
         let r = receive_point(&mut self.conn)?.mul_by_cofactor();
         // seed the hash function with s and r in its compressed form
@@ -161,7 +161,7 @@ impl<
         })
     }
 
-    fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, L>> {
+    pub fn compute_key(&mut self, c: u64) -> Result<GenericArray<u8, L>> {
         let mut hasher = self.hasher.clone();
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn chou_ot_key_exchange() {
+    pub fn chou_ot_key_exchange() {
         let index = 3;
         let server = thread::spawn(move || {
             let mut ot = ChouOrlandiOTSender::new(

@@ -31,15 +31,18 @@ stdweb = {version="0.4.5", features=["futures-support", "experimental_features_w
 rust_sodium = "0.8.0"
 rust_sodium-sys = "0.8.1"
 tungstenite = "0.5.3"
-tokio-tungstenite = "0.2.1"
+#tokio-tungstenite = "0.2.1"
 #TODO: wait for next version to correctly import futures
-tokio = {git = "https://github.com/tokio-rs/tokio", features = ["futures2"]}
+#tokio = {git = "https://github.com/tokio-rs/tokio", features = ["futures2"]}
 
 [dependencies]
+# for wasm support, sadly it is quite behind the master branch
+#rand = {git = "https://github.com/aochagavia/rand"}
+rand = "0.4.0"
+pcg_rand = "0.8.0"
 #TODO: nightly for faster field elements
 #curve25519-dalek = {version = "^0.16", features = ["nightly", "yolocrypto"]}
 curve25519-dalek = {version = "^0.16"}
-rand = "0.4.0"
 digest = "0.7.2"
 #TODO: use tiny keccak or other sha library
 sha3 = "0.7.3"
