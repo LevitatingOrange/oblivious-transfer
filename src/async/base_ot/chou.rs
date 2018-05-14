@@ -1,5 +1,5 @@
-use communication::async::websockets::*;
-use crypto::{SymmetricDecryptor, SymmetricEncryptor};
+use async::communication::websockets::*;
+use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
@@ -14,7 +14,7 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::sync::{Arc, Mutex};
 
-use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
+//use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
 // TODO use traits
 fn send_point(

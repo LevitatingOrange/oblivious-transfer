@@ -5,9 +5,9 @@ extern crate rand;
 extern crate sha3;
 extern crate tungstenite;
 
-use ot::base_ot::sync::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
-use ot::base_ot::sync::{BaseOTReceiver, BaseOTSender};
-use ot::crypto::dummy::DummyCryptoProvider;
+use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
+use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
+use ot::sync::crypto::dummy::DummyCryptoProvider;
 use rand::OsRng;
 use sha3::Sha3_256;
 use std::net::TcpListener;

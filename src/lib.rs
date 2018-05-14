@@ -58,9 +58,10 @@ pub mod errors {
 
 //extern crate block_cipher_trait;
 
-pub mod base_ot;
-pub mod communication;
-pub mod crypto;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod async;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub mod sync;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[no_mangle]

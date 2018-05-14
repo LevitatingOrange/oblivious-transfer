@@ -9,9 +9,9 @@ extern crate sha3;
 
 use error_chain::ChainedError;
 use futures::prelude::*;
-use ot::base_ot::async::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
-use ot::communication::async::websockets::*;
-use ot::crypto::dummy::DummyCryptoProvider;
+use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
+use ot::async::communication::websockets::*;
+use ot::async::crypto::dummy::DummyCryptoProvider;
 use ot::errors::*;
 use pcg_rand::Pcg32;
 use sha3::Sha3_256;
@@ -22,10 +22,9 @@ use stdweb::web::EventListenerHandle;
 use stdweb::web::WebSocket;
 use stdweb::PromiseFuture;
 
-use stdweb::web::event::{BlurEvent, ChangeEvent, ClickEvent, DoubleClickEvent, HashChangeEvent,
-                         KeyPressEvent, SocketCloseEvent};
+use stdweb::web::event::{ClickEvent, SocketCloseEvent};
 use stdweb::web::html_element::InputElement;
-use stdweb::web::{document, window, Element, HtmlElement};
+use stdweb::web::{document, Element, HtmlElement};
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()
@@ -158,14 +157,14 @@ fn main() {
                     if let Some(handle) = (*lock2).take() {
                         handle.remove();
                     }
-                    select(".connect").class_list().remove("connected");
+                    select(".connect").class_list().remove("connected").unwrap();
                 });
                 ws
             })
             .map_err(|e| Error::with_chain(e, "Connection error"))
             .and_then(WasmWebSocket::open)
             .map(move |ws| {
-                select(".connect").class_list().add("connected");
+                select(".connect").class_list().add("connected").unwrap();
 
                 console!(log, "Connection established!");
                 let receive_button = select(".ot-receive-btn");

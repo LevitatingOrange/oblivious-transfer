@@ -1,11 +1,5 @@
 use generic_array::{ArrayLength, GenericArray};
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod sodium;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub mod aes_browser;
-
 pub mod dummy;
 
 // TODO: is this a good interface? should there maybe be only one trait?

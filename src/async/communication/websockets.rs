@@ -19,6 +19,7 @@ pub struct WasmWebSocket {
     ws: WebSocket,
     // TODO: is it good to use owned vectors? (everywhere in the project)
     msg_queue: Result<VecDeque<Vec<u8>>>,
+    // TODO: only one waker? Will this break anything?
     waker: Option<Waker>,
     open: bool,
 }

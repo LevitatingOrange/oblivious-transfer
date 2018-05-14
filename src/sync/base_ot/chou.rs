@@ -1,5 +1,5 @@
-use communication::sync::{BinaryReceive, BinarySend};
-use crypto::{SymmetricDecryptor, SymmetricEncryptor};
+use sync::communication::{BinaryReceive, BinarySend};
+use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
