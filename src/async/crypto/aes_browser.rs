@@ -12,9 +12,10 @@ use stdweb::*;
 // if(window.crypto.webkitSubtle){
 //     window.crypto.subtle = window.crypto.webkitSubtle; //for Safari
 // }
-pub struct WasmAesCryptoProvider();
+#[derive(Default)]
+pub struct AesCryptoProvider();
 
-impl SymmetricEncryptor<U32> for WasmAesCryptoProvider {
+impl SymmetricEncryptor<U32> for AesCryptoProvider {
     fn encrypt(
         &mut self,
         key: &GenericArray<u8, U32>,
@@ -22,11 +23,14 @@ impl SymmetricEncryptor<U32> for WasmAesCryptoProvider {
     ) -> Box<Future<Item = Vec<u8>, Error = Error>> {
         let arr_key = TypedArray::from(key.as_slice()).buffer();
         let arr_data = TypedArray::from(data.as_slice()).buffer();
-        let future: PromiseFuture<ArrayBuffer> = js! {
+        let nonce: [u8; 12] = Default::default();
+        let tarr: TypedArray<u8> = TypedArray::from(&nonce[..]);
+        let arr_nonce = tarr.buffer();
+        let future: Result<PromiseFuture<ArrayBuffer>> = js! {
             var algorithm = {
                 "name": "AES-GCM",
-                "iv": new ArrayBuffer(0),
-                "tagLength": 16
+                "iv": @{arr_nonce},
+                "tagLength": 128,
             };
             var crypto = window.crypto.subtle;
             var result = crypto.importKey(
@@ -36,23 +40,26 @@ impl SymmetricEncryptor<U32> for WasmAesCryptoProvider {
                 false,
                 ["encrypt"]
             ).then(function(key) {
-                crypto.encrypt(algorithm, key, @{arr_data})
+                return crypto.encrypt(algorithm, key, @{arr_data});
+            }).catch(function(err) {
+                console.log(err);
             });
-            return future;
+            return result;
         }.try_into()
-            .unwrap();
+            .chain_err(|| "encryption failed");
         Box::new(
             future
+                .into_future()
+                .and_then(|f| f.map_err(|e| Error::with_chain(e, "Couldn't encrypt with aes-gcm")))
                 .map(|arr| {
                     let tarr: TypedArray<u8> = TypedArray::from(arr);
                     tarr.to_vec()
-                })
-                .map_err(|e| Error::with_chain(e, "Couldn't decrypt with aes-gcm")),
+                }),
         )
     }
 }
 
-impl SymmetricDecryptor<U32> for WasmAesCryptoProvider {
+impl SymmetricDecryptor<U32> for AesCryptoProvider {
     fn decrypt(
         &mut self,
         key: &GenericArray<u8, U32>,
@@ -60,11 +67,14 @@ impl SymmetricDecryptor<U32> for WasmAesCryptoProvider {
     ) -> Box<Future<Item = Vec<u8>, Error = Error>> {
         let arr_key = TypedArray::from(key.as_slice()).buffer();
         let arr_data = TypedArray::from(data.as_slice()).buffer();
-        let future: PromiseFuture<ArrayBuffer> = js! {
+        let nonce: [u8; 12] = Default::default();
+        let tarr: TypedArray<u8> = TypedArray::from(&nonce[..]);
+        let arr_nonce = tarr.buffer();
+        let future: Result<PromiseFuture<ArrayBuffer>> = js! {
             var algorithm = {
                 "name": "AES-GCM",
-                "iv": new ArrayBuffer(0),
-                "tagLength": 16
+                "iv": @{arr_nonce},
+                "tagLength": 128,
             };
             var crypto = window.crypto.subtle;
             var result = crypto.importKey(
@@ -74,18 +84,21 @@ impl SymmetricDecryptor<U32> for WasmAesCryptoProvider {
                 false,
                 ["decrypt"]
             ).then(function(key) {
-                crypto.decrypt(algorithm, key, @{arr_data})
+                return crypto.decrypt(algorithm, key, @{arr_data});
+            }).catch(function(err) {
+                console.error(err);
             });
-            return future;
+            return result;
         }.try_into()
-            .unwrap();
+            .chain_err(|| "decryption failed");
         Box::new(
             future
+                .into_future()
+                .and_then(|f| f.map_err(|e| Error::with_chain(e, "Couldn't decrypt with aes-gcm")))
                 .map(|arr| {
                     let tarr: TypedArray<u8> = TypedArray::from(arr);
                     tarr.to_vec()
-                })
-                .map_err(|e| Error::with_chain(e, "Couldn't decrypt with aes-gcm")),
+                }),
         )
     }
 }

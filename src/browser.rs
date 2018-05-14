@@ -11,7 +11,7 @@ use error_chain::ChainedError;
 use futures::prelude::*;
 use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::async::communication::websockets::*;
-use ot::async::crypto::dummy::DummyCryptoProvider;
+use ot::async::crypto::aes_browser::AesCryptoProvider;
 use ot::errors::*;
 use pcg_rand::Pcg32;
 use sha3::Sha3_256;
@@ -50,15 +50,14 @@ fn error(val: &Error) {
 
 fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
     // TODO: is this rng secure? Read the crate doc and about pcgs
-    // TODO: use actual crypto provider, use javascript api
-    // TODO: should we create it everytime
+    // TODO: make example with single Receiver that it used more than once, fix it first
     let handle = ws.clone();
     let lock = handle.lock().unwrap();
     console!(log, "Trying to receive value...");
     let rng = Pcg32::new_unseeded();
     let future = lock.write("send".as_bytes().to_owned())
         .and_then(move |_| {
-            ChouOrlandiOTReceiver::new(ws, Sha3_256::default(), DummyCryptoProvider::default(), rng)
+            ChouOrlandiOTReceiver::new(ws, Sha3_256::default(), AesCryptoProvider::default(), rng)
         })
         .and_then(move |s| s.receive(c, n))
         .and_then(|result| {
@@ -92,7 +91,7 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
             ChouOrlandiOTSender::new(
                 ws,
                 Sha3_256::default(),
-                DummyCryptoProvider::default(),
+                AesCryptoProvider::default(),
                 &mut rng,
             )
         })

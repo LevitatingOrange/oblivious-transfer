@@ -130,9 +130,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                         if let Some((key, value)) = kv.pop() {
                             let future = s.encryptor.encrypt(&key, value).and_then(move |value| {
                                 let lock = conn.lock().unwrap();
-                                lock
-                                    .write(value)
-                                    .map(move |_| ((), (s, kv)))
+                                lock.write(value).map(move |_| ((), (s, kv)))
                             });
                             Some(future)
                         } else {
@@ -214,18 +212,17 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
     pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
         self.compute_key(c as u64)
             .map_err(|e| Error::with_chain(e, "Error computing keys"))
-            .and_then(move |(s, key)| {
-                let state = (s, 0, key);
+            .and_then(move |(mut s, key)| {
+                let state = (s.conn.clone(), 0);
                 stream::unfold(
                     state,
-                    move |(mut s, i, key): (Self, usize, GenericArray<u8, L>)| {
-                        let conn = s.conn.clone();
+                    move |(conn, i): (Arc<Mutex<WasmWebSocket>>, usize)| {
                         if i < n {
-                            let fut = conn.lock().unwrap().read().and_then(move |(_, buf)| {
-                                s.decryptor
-                                    .decrypt(&key, buf)
-                                    .map(move |buf| (buf, (s, i + 1, key)))
-                            });
+                            let next_conn = conn.clone();
+                            let fut = conn.lock()
+                                .unwrap()
+                                .read()
+                                .map(move |(_, buf)| (buf, (next_conn, i + 1)));
                             Some(fut)
                         } else {
                             None
@@ -240,6 +237,7 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
                             Err("index out of bounds".into())
                         }
                     })
+                    .and_then(move |buf| s.decryptor.decrypt(&key, buf))
             })
     }
 }

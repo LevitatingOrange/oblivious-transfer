@@ -7,7 +7,7 @@ extern crate tungstenite;
 
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
-use ot::sync::crypto::dummy::DummyCryptoProvider;
+use ot::sync::crypto::aes::AesCryptoProvider;
 use rand::OsRng;
 use sha3::Sha3_256;
 use std::net::TcpListener;
@@ -57,7 +57,7 @@ fn main() {
                         let mut receiver = ChouOrlandiOTReceiver::new(
                             stream,
                             Sha3_256::default(),
-                            DummyCryptoProvider::default(),
+                            AesCryptoProvider::default(),
                             OsRng::new().unwrap(),
                         ).unwrap();
                         let lock = args.lock().unwrap();
@@ -70,7 +70,7 @@ fn main() {
                         let mut sender = ChouOrlandiOTSender::new(
                             stream,
                             Sha3_256::default(),
-                            DummyCryptoProvider::default(),
+                            AesCryptoProvider::default(),
                             &mut OsRng::new().unwrap(),
                         ).unwrap();
                         let vals = args.lock().unwrap().values.to_owned();
