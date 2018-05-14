@@ -9,10 +9,7 @@ use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
 
-use stdweb::web::event::SocketMessageData;
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
-
-use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
 pub struct WasmWebSocket {
     me: Weak<Mutex<WasmWebSocket>>,

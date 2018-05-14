@@ -127,14 +127,14 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                     state,
                     |(mut s, mut kv): (Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
                         let conn = s.conn.clone();
-                        if let Some((key, mut value)) = kv.pop() {
-                            s.encryptor.encrypt(&key, &mut value);
-                            Some(
-                                conn.lock()
-                                    .unwrap()
+                        if let Some((key, value)) = kv.pop() {
+                            let future = s.encryptor.encrypt(&key, value).and_then(move |value| {
+                                let lock = conn.lock().unwrap();
+                                lock
                                     .write(value)
-                                    .map(move |_| ((), (s, kv))),
-                            )
+                                    .map(move |_| ((), (s, kv)))
+                            });
+                            Some(future)
                         } else {
                             None
                         }
@@ -221,9 +221,10 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
                     move |(mut s, i, key): (Self, usize, GenericArray<u8, L>)| {
                         let conn = s.conn.clone();
                         if i < n {
-                            let fut = conn.lock().unwrap().read().map(move |(_, mut buf)| {
-                                s.decryptor.decrypt(&key, &mut buf);
-                                (buf, (s, i + 1, key))
+                            let fut = conn.lock().unwrap().read().and_then(move |(_, buf)| {
+                                s.decryptor
+                                    .decrypt(&key, buf)
+                                    .map(move |buf| (buf, (s, i + 1, key)))
                             });
                             Some(fut)
                         } else {

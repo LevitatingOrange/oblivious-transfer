@@ -1,5 +1,3 @@
-use sync::communication::{BinaryReceive, BinarySend};
-use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
@@ -11,6 +9,8 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::iter::Iterator;
 use std::vec::Vec;
+use sync::communication::{BinaryReceive, BinarySend};
+use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 
 pub struct ChouOrlandiOTSender<T, D, L, S>
 where
@@ -201,9 +201,6 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sync::base_ot::{BaseOTReceiver, BaseOTSender};
-    use sync::communication::corrupted::CorruptedChannel;
-    use sync::crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider, aes::AesCryptoProvider};
     use rand::OsRng;
     use rand::{thread_rng, Rng};
     use sha3::Sha3_256;
@@ -212,6 +209,10 @@ mod tests {
     use std::sync::Arc;
     use std::thread;
     use std::time::Duration;
+    use sync::base_ot::{BaseOTReceiver, BaseOTSender};
+    use sync::communication::corrupted::CorruptedChannel;
+    use sync::crypto::{aes::AesCryptoProvider, dummy::DummyCryptoProvider,
+                       sodium::SodiumCryptoProvider};
     use tungstenite::client::connect;
     use tungstenite::server::accept;
     use url::Url;
@@ -477,6 +478,5 @@ mod tests {
             AesCryptoProvider::default()
         );
     }
-    
 
 }

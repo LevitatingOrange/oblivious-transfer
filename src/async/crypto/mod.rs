@@ -1,6 +1,6 @@
-use generic_array::{ArrayLength, GenericArray};
-use futures::Future;
 use errors::*;
+use futures::Future;
+use generic_array::{ArrayLength, GenericArray};
 pub mod aes_browser;
 pub mod dummy;
 
@@ -12,12 +12,20 @@ pub trait SymmetricEncryptor<E>
 where
     E: ArrayLength<u8>,
 {
-    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Box<Future<Item = Vec<u8>, Error = Error>>;
+    fn encrypt(
+        &mut self,
+        key: &GenericArray<u8, E>,
+        data: Vec<u8>,
+    ) -> Box<Future<Item = Vec<u8>, Error = Error>>;
 }
 
 pub trait SymmetricDecryptor<E>
 where
     E: ArrayLength<u8>,
 {
-    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Box<Future<Item = Vec<u8>, Error = Error>>;
+    fn decrypt(
+        &mut self,
+        key: &GenericArray<u8, E>,
+        data: Vec<u8>,
+    ) -> Box<Future<Item = Vec<u8>, Error = Error>>;
 }

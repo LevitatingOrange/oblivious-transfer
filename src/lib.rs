@@ -9,9 +9,9 @@
 extern crate futures;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-extern crate tungstenite;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate ring;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+extern crate tungstenite;
 
 #[macro_use]
 extern crate arrayref;
