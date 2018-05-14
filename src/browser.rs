@@ -64,8 +64,8 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
             String::from_utf8(result)
                 .map_err(|e| Error::with_chain(e, "Error while parsing String"))
         })
-        .map(|result| {
-            console!(log, "Value received!");
+        .map(move |result| {
+            console!(log, "Value received! It took {:?}");
             print_received_value(result)
         })
         .recover(|e| {

@@ -216,6 +216,7 @@ mod tests {
     use tungstenite::client::connect;
     use tungstenite::server::accept;
     use url::Url;
+    use std::time::Instant;
 
     fn create_random_strings(n: usize, l: usize) -> Vec<String> {
         let mut rng = thread_rng();
@@ -273,26 +274,40 @@ mod tests {
     pub fn chou_ot_key_exchange() {
         let index = 3;
         let server = thread::spawn(move || {
-            let mut ot = ChouOrlandiOTSender::new(
-                TcpListener::bind("127.0.0.1:1236")
+            let stream = TcpListener::bind("127.0.0.1:1236")
                     .unwrap()
                     .accept()
                     .unwrap()
-                    .0,
+                    .0;
+            let mut rand = OsRng::new().unwrap();
+            let mut now = Instant::now();
+            let mut ot = ChouOrlandiOTSender::new(
+                stream,
                 Sha3_256::default(),
                 DummyCryptoProvider::default(),
-                &mut OsRng::new().unwrap(),
+                &mut rand,
             ).unwrap();
-            ot.compute_keys(10).unwrap()
+            println!("Chou ot send new took {:?}", now.elapsed());
+            now = Instant::now();
+            let keys = ot.compute_keys(10).unwrap();
+            println!("Chou ot key send took {:?}", now.elapsed());
+            keys
         });
         let client = thread::spawn(move || {
+            let stream = TcpStream::connect("127.0.0.1:1236").unwrap();
+            let rand =  OsRng::new().unwrap();
+            let mut now = Instant::now();
             let mut ot = ChouOrlandiOTReceiver::new(
-                TcpStream::connect("127.0.0.1:1236").unwrap(),
+                stream,
                 Sha3_256::default(),
                 DummyCryptoProvider::default(),
-                OsRng::new().unwrap(),
+                rand,
             ).unwrap();
-            ot.compute_key(index).unwrap()
+            println!("Chou ot receive new took {:?}", now.elapsed());
+            now = Instant::now();
+            let key = ot.compute_key(index).unwrap();
+            println!("Chou ot key receive took {:?}", now.elapsed());
+            key
         });
         let hashes_sender = server.join().unwrap();
         let hash_receiver = client.join().unwrap();

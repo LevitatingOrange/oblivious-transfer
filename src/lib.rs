@@ -59,14 +59,11 @@ pub mod errors {
 }
 
 //extern crate block_cipher_trait;
+// TODO use fast CSPRG, the os_rng used takes very long to generate a value as it creates one from the os entropy pool
 // TODO channel should be authenticated, but not necessarily confidential, use TLS?
+// TODO transmit length, probably with aes-gcm ad (without any crypto value, would be convinient)
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod async;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod sync;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-#[no_mangle]
-pub extern "C" fn add_one(a: u32) -> u32 {
-    a + 1
-}

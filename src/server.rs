@@ -18,6 +18,8 @@ use tungstenite::handshake::server::Request;
 use tungstenite::server::accept_hdr;
 use tungstenite::Message;
 
+use std::time::Instant;
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "ot")]
 struct Opt {
@@ -54,6 +56,7 @@ fn main() {
                 if let Ok(Message::Binary(message)) = stream.read_message() {
                     if message == "receive".as_bytes() {
                         println!("Receiving values...");
+                        let now = Instant::now();
                         let mut receiver = ChouOrlandiOTReceiver::new(
                             stream,
                             Sha3_256::default(),
@@ -62,11 +65,12 @@ fn main() {
                         ).unwrap();
                         let lock = args.lock().unwrap();
                         let result = receiver.receive(lock.index, lock.length).unwrap();
-                        println!("Got values: {}", String::from_utf8(result).unwrap());
+                        println!("Got values: {} in {:?}", String::from_utf8(result).unwrap(), now.elapsed());
                         // TODO: make this more idiomatic
                         stream = receiver.conn;
                     } else if message == "send".as_bytes() {
                         println!("Sending values...");
+                        let now = Instant::now();
                         let mut sender = ChouOrlandiOTSender::new(
                             stream,
                             Sha3_256::default(),
@@ -84,8 +88,8 @@ fn main() {
                                     .collect(),
                             )
                             .unwrap();
+                        println!("sent values in {:?}!", now.elapsed());
                         stream = sender.conn;
-                        println!("sent values!");
                     } else {
                         println!("Could not understand message");
                     }
