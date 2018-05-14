@@ -1,7 +1,7 @@
 use generic_array::{ArrayLength, GenericArray};
 use futures::Future;
 use errors::*;
-//pub mod aes_browser;
+pub mod aes_browser;
 pub mod dummy;
 
 // TODO: is this a good interface? should there maybe be only one trait?

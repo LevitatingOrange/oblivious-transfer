@@ -10,6 +10,8 @@ extern crate futures;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate tungstenite;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+extern crate ring;
 
 #[macro_use]
 extern crate arrayref;
@@ -57,7 +59,7 @@ pub mod errors {
 }
 
 //extern crate block_cipher_trait;
-
+// TODO channel should be authenticated, but not necessarily confidential, use TLS?
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod async;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]

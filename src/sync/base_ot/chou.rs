@@ -112,7 +112,7 @@ impl<
         // TODO: make this idiomatic, compute_keys, is copy ok here?
         for (key, value) in keys.into_iter().zip(values) {
             let mut buf = value.to_owned();
-            self.encryptor.encrypt(&key, &mut buf);
+            buf = self.encryptor.encrypt(&key, buf)?;
             self.conn.send(&buf)?;
         }
         Ok(())
@@ -193,17 +193,17 @@ impl<
         for _ in 0..n {
             buffers.push(self.conn.receive()?);
         }
-        self.decryptor.decrypt(&key, &mut (buffers[index as usize]));
-        Ok(buffers.remove(index as usize))
+        let buf = self.decryptor.decrypt(&key, buffers.remove(index))?;
+        Ok(buf)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base_ot::{BaseOTReceiver, BaseOTSender};
-    use communication::sync::corrupted::CorruptedChannel;
-    use crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider};
+    use sync::base_ot::{BaseOTReceiver, BaseOTSender};
+    use sync::communication::corrupted::CorruptedChannel;
+    use sync::crypto::{dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider, aes::AesCryptoProvider};
     use rand::OsRng;
     use rand::{thread_rng, Rng};
     use sha3::Sha3_256;
@@ -256,7 +256,7 @@ mod tests {
                     $dec,
                     OsRng::new().unwrap(),
                 ).unwrap();
-                ot.receive(c, n).unwrap()
+                ot.receive(c as usize, n).unwrap()
             });
             let _ = server.join().unwrap();
             let result = String::from_utf8(client.join().unwrap()).unwrap();
@@ -458,4 +458,25 @@ mod tests {
             SodiumCryptoProvider::default()
         );
     }
+
+    #[test]
+    fn websocket_with_aes_gcm_encryption() {
+        generate_communication_test!(
+            accept(
+                TcpListener::bind("127.0.0.1:1243")
+                    .unwrap()
+                    .accept()
+                    .unwrap()
+                    .0
+            ).unwrap(),
+            connect(Url::parse("ws://localhost:1243/socket").unwrap())
+                .unwrap()
+                .0,
+            Sha3_256::default(),
+            AesCryptoProvider::default(),
+            AesCryptoProvider::default()
+        );
+    }
+    
+
 }

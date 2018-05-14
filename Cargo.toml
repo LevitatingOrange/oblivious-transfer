@@ -28,6 +28,7 @@ path = "src/server.rs"
 stdweb = {version="0.4.5", features=["futures-support", "experimental_features_which_may_break_on_minor_version_bumps"]}
 
 [target.'cfg(not(all(target_arch="wasm32", target_os="unknown")))'.dependencies]
+ring = "0.12.1"
 rust_sodium = "0.8.0"
 rust_sodium-sys = "0.8.1"
 tungstenite = "0.5.3"
