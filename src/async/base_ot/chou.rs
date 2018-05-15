@@ -116,21 +116,26 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
         })
     }
 
-    // TODO: return Self
     // TODO: should the values be owned?
-    pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = (), Error = Error> {
+    pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = Self, Error = Error> {
         self.compute_keys(values.len() as u64)
             .map_err(|e| Error::with_chain(e, "Error computing keys"))
             .and_then(move |(s, keys)| {
-                let state = (s, keys.into_iter().zip(values).rev().collect());
+                let state = (Some(s), keys.into_iter().zip(values).rev().collect());
                 let stream = stream::unfold(
                     state,
-                    |(mut s, mut kv): (Self, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
-                        let conn = s.conn.clone();
+                    |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
+                        let mut so = s.take().unwrap();
+                        let conn = so.conn.clone();
                         if let Some((key, value)) = kv.pop() {
-                            let future = s.encryptor.encrypt(&key, value).and_then(move |value| {
+                            let future = so.encryptor.encrypt(&key, value).and_then(move |value| {
                                 let lock = conn.lock().unwrap();
-                                lock.write(value).map(move |_| ((), (s, kv)))
+                                let (ret, state) = if kv.len() == 0 {
+                                    (Some(so), None)
+                                } else {
+                                    (None, Some(so))
+                                };
+                                lock.write(value).map(move |_| (ret, (state, kv)))                                    
                             });
                             Some(future)
                         } else {
@@ -140,7 +145,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                 );
                 stream
                     .collect()
-                    .map(|_: Vec<()>| ())
+                    .map(|mut selfs: Vec<Option<Self>>| selfs.pop().unwrap().unwrap())
                     .map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
             })
     }
@@ -207,9 +212,8 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
         })
     }
 
-    // TODO: Return Self, don't specify size?
-    // TODO: index shouln't be 0
-    pub fn receive(self, c: usize, n: usize) -> impl Future<Item = Vec<u8>, Error = Error> {
+    // TODO: don't specify size?
+    pub fn receive(self, c: usize, n: usize) -> impl Future<Item = (Self, Vec<u8>), Error = Error> {
         self.compute_key(c as u64)
             .map_err(|e| Error::with_chain(e, "Error computing keys"))
             .and_then(move |(mut s, key)| {
@@ -237,7 +241,7 @@ impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: Symmetric
                             Err("index out of bounds".into())
                         }
                     })
-                    .and_then(move |buf| s.decryptor.decrypt(&key, buf))
+                    .and_then(move |buf| s.decryptor.decrypt(&key, buf).map(|v| (s, v)))
             })
     }
 }

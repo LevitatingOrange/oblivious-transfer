@@ -60,12 +60,12 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
             ChouOrlandiOTReceiver::new(ws, Sha3_256::default(), AesCryptoProvider::default(), rng)
         })
         .and_then(move |s| s.receive(c, n))
-        .and_then(|result| {
+        .and_then(|(_, result)| {
             String::from_utf8(result)
                 .map_err(|e| Error::with_chain(e, "Error while parsing String"))
         })
         .map(move |result| {
-            console!(log, "Value received! It took {:?}");
+            console!(log, "Value received!");
             print_received_value(result)
         })
         .recover(|e| {
@@ -82,8 +82,6 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     let handle = ws.clone();
     let lock = handle.lock().unwrap();
     // TODO: is this rng secure? Read the crate doc and about pcgs
-    // TODO: use actual crypto provider, use javascript api
-    // TODO: should we create it everytime
     console!(log, "Trying to send values...");
     let mut rng = Pcg32::new_unseeded();
     let future = lock.write("receive".as_bytes().to_owned())

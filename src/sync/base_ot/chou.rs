@@ -188,7 +188,6 @@ impl<
 {
     fn receive(&mut self, index: usize, n: usize) -> Result<Vec<u8>> {
         let key = self.compute_key(index as u64)?;
-        // TODO make this more idiomatic?
         let mut buffers: Vec<Vec<u8>> = Default::default();
         for _ in 0..n {
             buffers.push(self.conn.receive()?);
