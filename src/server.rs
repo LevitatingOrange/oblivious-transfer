@@ -8,7 +8,7 @@ extern crate tungstenite;
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::sync::crypto::aes::AesCryptoProvider;
-use rand::OsRng;
+use rand::{Rng, OsRng, ChaChaRng, SeedableRng};
 use sha3::Sha3_256;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
@@ -56,12 +56,13 @@ fn main() {
                 if let Ok(Message::Binary(message)) = stream.read_message() {
                     if message == "receive".as_bytes() {
                         println!("Receiving values...");
+                        let seed: [u32; 8] = OsRng::new().unwrap().gen();
                         let now = Instant::now();
                         let mut receiver = ChouOrlandiOTReceiver::new(
                             stream,
                             Sha3_256::default(),
                             AesCryptoProvider::default(),
-                            OsRng::new().unwrap(),
+                            ChaChaRng::from_seed(&seed)
                         ).unwrap();
                         let lock = args.lock().unwrap();
                         let result = receiver.receive(lock.index, lock.length).unwrap();
@@ -70,12 +71,13 @@ fn main() {
                         stream = receiver.conn;
                     } else if message == "send".as_bytes() {
                         println!("Sending values...");
+                        let seed: [u32; 8] = OsRng::new().unwrap().gen();
                         let now = Instant::now();
                         let mut sender = ChouOrlandiOTSender::new(
                             stream,
                             Sha3_256::default(),
                             AesCryptoProvider::default(),
-                            &mut OsRng::new().unwrap(),
+                            &mut ChaChaRng::from_seed(&seed)
                         ).unwrap();
                         let vals = args.lock().unwrap().values.to_owned();
                         sender

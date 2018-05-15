@@ -39,7 +39,7 @@ tungstenite = "0.5.3"
 [dependencies]
 # for wasm support, sadly it is quite behind the master branch
 #rand = {git = "https://github.com/aochagavia/rand"}
-rand = "0.4.0"
+rand = "0.4.2"
 pcg_rand = "0.8.0"
 #TODO: nightly for faster field elements
 #curve25519-dalek = {version = "^0.16", features = ["nightly", "yolocrypto"]}

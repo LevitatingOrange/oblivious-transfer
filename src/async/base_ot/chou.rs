@@ -125,9 +125,9 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                 let stream = stream::unfold(
                     state,
                     |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
-                        let mut so = s.take().unwrap();
-                        let conn = so.conn.clone();
                         if let Some((key, value)) = kv.pop() {
+                            let mut so = s.take().unwrap();
+                            let conn = so.conn.clone();
                             let future = so.encryptor.encrypt(&key, value).and_then(move |value| {
                                 let lock = conn.lock().unwrap();
                                 let (ret, state) = if kv.len() == 0 {
