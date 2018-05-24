@@ -1,7 +1,7 @@
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
-use digest::Digest;
+
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 use errors::*;
@@ -9,9 +9,11 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::iter::Iterator;
 use std::vec::Vec;
+use common::digest::Digest;
 use sync::communication::{BinaryReceive, BinarySend};
 use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 
+#[derive(Clone)]
 pub struct ChouOrlandiOTSender<T, D, L, S>
 where
     T: BinarySend + BinaryReceive,
@@ -119,6 +121,7 @@ impl<
     }
 }
 
+#[derive(Clone)]
 pub struct ChouOrlandiOTReceiver<T, R, D, L, S>
 where
     T: BinaryReceive + BinarySend,
@@ -202,12 +205,13 @@ mod tests {
     use super::*;
     use rand::OsRng;
     use rand::{thread_rng, Rng};
-    use sha3::Sha3_256;
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::sync::Arc;
     use std::thread;
     use std::time::Duration;
+    use std::time::Instant;
+    use common::digest::sha3::SHA3_256;
     use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::communication::corrupted::CorruptedChannel;
     use sync::crypto::{aes::AesCryptoProvider, dummy::DummyCryptoProvider,
@@ -215,7 +219,6 @@ mod tests {
     use tungstenite::client::connect;
     use tungstenite::server::accept;
     use url::Url;
-    use std::time::Instant;
 
     fn create_random_strings(n: usize, l: usize) -> Vec<String> {
         let mut rng = thread_rng();
@@ -274,10 +277,10 @@ mod tests {
         let index = 3;
         let server = thread::spawn(move || {
             let stream = TcpListener::bind("127.0.0.1:1236")
-                    .unwrap()
-                    .accept()
-                    .unwrap()
-                    .0;
+                .unwrap()
+                .accept()
+                .unwrap()
+                .0;
             let mut rand = OsRng::new().unwrap();
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTSender::new(
@@ -294,7 +297,7 @@ mod tests {
         });
         let client = thread::spawn(move || {
             let stream = TcpStream::connect("127.0.0.1:1236").unwrap();
-            let rand =  OsRng::new().unwrap();
+            let rand = OsRng::new().unwrap();
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTReceiver::new(
                 stream,

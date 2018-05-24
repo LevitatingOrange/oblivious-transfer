@@ -3,7 +3,7 @@ use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
-use digest::Digest;
+use common::digest::Digest;
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 /// TODO: make this parallel
@@ -135,7 +135,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                                 } else {
                                     (None, Some(so))
                                 };
-                                lock.write(value).map(move |_| (ret, (state, kv)))                                    
+                                lock.write(value).map(move |_| (ret, (state, kv)))
                             });
                             Some(future)
                         } else {

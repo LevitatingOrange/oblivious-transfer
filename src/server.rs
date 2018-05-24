@@ -2,14 +2,13 @@
 extern crate structopt;
 extern crate ot;
 extern crate rand;
-extern crate sha3;
 extern crate tungstenite;
 
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::sync::crypto::aes::AesCryptoProvider;
-use rand::{Rng, OsRng, ChaChaRng, SeedableRng};
-use sha3::Sha3_256;
+use rand::{ChaChaRng, OsRng, Rng, SeedableRng};
+use ot::common::digest::sha3::SHA3_256;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
@@ -60,13 +59,17 @@ fn main() {
                         let now = Instant::now();
                         let mut receiver = ChouOrlandiOTReceiver::new(
                             stream,
-                            Sha3_256::default(),
+                            SHA3_256::default(),
                             AesCryptoProvider::default(),
-                            ChaChaRng::from_seed(&seed)
+                            ChaChaRng::from_seed(&seed),
                         ).unwrap();
                         let lock = args.lock().unwrap();
                         let result = receiver.receive(lock.index, lock.length).unwrap();
-                        println!("Got values: {} in {:?}", String::from_utf8(result).unwrap(), now.elapsed());
+                        println!(
+                            "Got values: {} in {:?}",
+                            String::from_utf8(result).unwrap(),
+                            now.elapsed()
+                        );
                         // TODO: make this more idiomatic
                         stream = receiver.conn;
                     } else if message == "send".as_bytes() {
@@ -75,9 +78,9 @@ fn main() {
                         let now = Instant::now();
                         let mut sender = ChouOrlandiOTSender::new(
                             stream,
-                            Sha3_256::default(),
+                            SHA3_256::default(),
                             AesCryptoProvider::default(),
-                            &mut ChaChaRng::from_seed(&seed)
+                            &mut ChaChaRng::from_seed(&seed),
                         ).unwrap();
                         let vals = args.lock().unwrap().values.to_owned();
                         sender

@@ -20,6 +20,11 @@ path = "src/browser.rs"
 name = "ot_server"
 path = "src/server.rs"
 
+
+[[bin]]
+name = "ot_ext"
+path = "src/extensions.rs"
+
 #[target.'cfg(all(target_arch="wasm32", target_os="unknown"))'.dependencies]
 #wasm-bindgen = "0.2"
 #stdweb = {version="0.4.4"}
@@ -44,14 +49,13 @@ pcg_rand = "0.8.0"
 #TODO: nightly for faster field elements
 #curve25519-dalek = {version = "^0.16", features = ["nightly", "yolocrypto"]}
 curve25519-dalek = {version = "^0.16"}
-digest = "0.7.2"
-#TODO: use tiny keccak or other sha library
-sha3 = "0.7.3"
+tiny-keccak = "1.4.2"
 error-chain = "0.11.0"
 generic-array = "0.9.0"
 url = "1.5.1"
 structopt = "0.2"
 arrayref = "0.3.4"
 futures = "0.2.1"
+smallbitvec = "2.1.0"
 
 #block_cipher_trait = "0.5.0"

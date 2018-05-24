@@ -5,7 +5,7 @@ extern crate error_chain;
 extern crate ot;
 extern crate pcg_rand;
 extern crate rand;
-extern crate sha3;
+extern crate tiny_keccak;
 
 use error_chain::ChainedError;
 use futures::prelude::*;
@@ -13,19 +13,18 @@ use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::async::communication::websockets::*;
 use ot::async::crypto::aes_browser::AesCryptoProvider;
 use ot::errors::*;
-use sha3::Sha3_256;
+use ot::common::digest::sha3::SHA3_256;
+use rand::{ChaChaRng, SeedableRng};
 use std::sync::{Arc, Mutex};
 use stdweb::traits::*;
 use stdweb::unstable::TryInto;
 use stdweb::web::EventListenerHandle;
 use stdweb::web::WebSocket;
 use stdweb::PromiseFuture;
-use rand::{Rng, SeedableRng, ChaChaRng};
-
 use stdweb::web::event::{ClickEvent, SocketCloseEvent};
 use stdweb::web::html_element::InputElement;
-use stdweb::web::{document, Element, HtmlElement};
 use stdweb::web::TypedArray;
+use stdweb::web::{document, Element, HtmlElement};
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()
@@ -59,11 +58,12 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
         var array = new Uint32Array(8);
         window.crypto.getRandomValues(array);
         return array;
-    }.try_into().unwrap();
+    }.try_into()
+        .unwrap();
     let rng = ChaChaRng::from_seed(&seed.to_vec());
     let future = lock.write("send".as_bytes().to_owned())
         .and_then(move |_| {
-            ChouOrlandiOTReceiver::new(ws, Sha3_256::default(), AesCryptoProvider::default(), rng)
+            ChouOrlandiOTReceiver::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
         })
         .and_then(move |s| s.receive(c, n))
         .and_then(|(_, result)| {
@@ -89,17 +89,18 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     let lock = handle.lock().unwrap();
     // TODO: is this rng secure? Read the crate doc and about pcgs
     console!(log, "Trying to send values...");
-    let seed: TypedArray <u32> = js!{
+    let seed: TypedArray<u32> = js!{
         var array = new Uint32Array(8);
         window.crypto.getRandomValues(array);
         return array;
-    }.try_into().unwrap();
+    }.try_into()
+        .unwrap();
     let mut rng = ChaChaRng::from_seed(&seed.to_vec());
     let future = lock.write("receive".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTSender::new(
                 ws,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 AesCryptoProvider::default(),
                 &mut rng,
             )

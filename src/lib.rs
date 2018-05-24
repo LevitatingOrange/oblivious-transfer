@@ -16,14 +16,13 @@ extern crate tungstenite;
 #[macro_use]
 extern crate arrayref;
 
+extern crate smallbitvec;
+
 extern crate curve25519_dalek;
-extern crate digest;
 extern crate generic_array;
 extern crate rand;
 extern crate url;
-// TODO: consider tiny keccak
-// TODO: rewrite digest trait?
-extern crate sha3;
+extern crate tiny_keccak;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate rust_sodium;
@@ -62,8 +61,9 @@ pub mod errors {
 // TODO use fast CSPRG, the os_rng used takes very long to generate a value as it creates one from the os entropy pool
 // TODO channel should be authenticated, but not necessarily confidential, use TLS?
 // TODO transmit length, probably with aes-gcm ad (without any crypto value, would be convinient)
+// TODO for now, async only works on the client
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod async;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod sync;
-
+pub mod common;
