@@ -13,3 +13,4 @@ pub trait BaseOTSender {
 pub trait BaseOTReceiver {
     fn receive(&mut self, index: usize, n: usize) -> Result<Vec<u8>>;
 }
+

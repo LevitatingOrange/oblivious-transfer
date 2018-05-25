@@ -1,17 +1,12 @@
 use super::{ExtendedOTReceiver, ExtendedOTSender};
 use bit_vec::BitVec;
 use common::digest::ArbitraryDigest;
+use common::util::bv_truncate;
 use errors::*;
 use rand::Rng;
 use sync::base_ot::BaseOTReceiver;
 use sync::base_ot::BaseOTSender;
-use sync::communication::{BinaryReceive, BinarySend};
-
-fn bv_truncate(bytes: &[u8], length: usize) -> BitVec {
-    let mut bv = BitVec::from_bytes(bytes);
-    bv.truncate(length);
-    bv
-}
+use sync::communication::{BinaryReceive, BinarySend, GetConn};
 
 fn trunc_hash<A>(mut hasher: A, length: usize, data: &[u8]) -> BitVec
 where
@@ -41,31 +36,30 @@ where
 /// security parameter: number of bytes to use
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> AsharovExtendedOTReceiver<T, A> {
     pub fn new<S, R>(
-        conn: T,
         arbitrary_hasher: A,
         mut base_ot_sender: S,
         mut rng: R,
         security_param: usize,
     ) -> Result<Self>
     where
-        S: BaseOTSender,
+        S: BaseOTSender + GetConn<T>,
         R: Rng,
     {
         let l = security_param * 8;
         let mut initial_pairs = Vec::with_capacity(l);
-        for i in 0..l {
+        for _ in 0..l {
             let mut k0: Vec<u8> = Vec::with_capacity(security_param);
             let mut k1: Vec<u8> = Vec::with_capacity(security_param);
-            for i in 0..security_param {
-                k0[i] = rng.gen();
-                k1[i] = rng.gen();
+            for _ in 0..security_param {
+                k0.push(rng.gen());
+                k1.push(rng.gen());
             }
             base_ot_sender.send(vec![&k0, &k1])?;
-            initial_pairs[i] = (k0, k1);
+            initial_pairs.push((k0, k1));
         }
         Ok(AsharovExtendedOTReceiver {
             arbitrary_hasher: arbitrary_hasher,
-            conn: conn,
+            conn: base_ot_sender.get_conn(),
             initial_pairs: initial_pairs,
         })
     }
@@ -76,13 +70,12 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiv
 {
     fn receive(mut self, choice_bits: BitVec) -> Result<Vec<Vec<u8>>> {
         let output_size = choice_bits.len();
-        let l = self.initial_pairs.len() * 8;
+        let l = self.initial_pairs.len();
         //let mut result = Vec::with_capacity(choice_bits);
         let t_mat: Vec<BitVec> = self.initial_pairs
             .iter()
             .map(|(k0, _)| trunc_hash(self.arbitrary_hasher.clone(), output_size, k0))
             .collect();
-        assert_eq!(t_mat[0].len(), output_size, "bitvec lengths don't match");
         for ((_, k1), t) in self.initial_pairs.iter().zip(&t_mat) {
             assert_eq!(t.len(), output_size, "internal error, lengths don't match.");
             let gk = trunc_hash(self.arbitrary_hasher.clone(), output_size, k1);
@@ -105,7 +98,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiv
             );
             let mut bt = BitVec::with_capacity(l);
             for j in 0..l {
-                bt.set(j, t_mat[j][i]);
+                bt.push(t_mat[j][i]);
             }
             let mut hasher = self.arbitrary_hasher.clone();
             hasher.input(&(i as u64).to_bytes());
@@ -137,25 +130,25 @@ where
 /// security parameter: number of bytes to use
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> AsharovExtendedOTSender<T, A> {
     pub fn new<S, R>(
-        conn: T,
         arbitrary_hasher: A,
         mut base_ot_receiver: S,
         mut rng: R,
         security_param: usize,
     ) -> Result<Self>
     where
-        S: BaseOTReceiver,
+        S: BaseOTReceiver + GetConn<T>,
         R: Rng,
     {
+        let l = security_param * 8;
         let mut random_choices = BitVec::with_capacity(security_param);
         let mut initial = Vec::with_capacity(security_param);
-        for i in 0..security_param {
+        for _ in 0..l {
             let mut choice: bool = rng.gen();
-            initial[i] = base_ot_receiver.receive(choice as usize, 2)?;
-            random_choices.set(i, choice);
+            initial.push(base_ot_receiver.receive(choice as usize, 2)?);
+            random_choices.push(choice);
         }
         Ok(AsharovExtendedOTSender {
-            conn: conn,
+            conn: base_ot_receiver.get_conn(),
             arbitrary_hasher: arbitrary_hasher,
             initial: initial,
             random_choices: random_choices,
@@ -168,7 +161,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTSender
 {
     fn send(mut self, values: Vec<(&[u8], &[u8])>) -> Result<()> {
         let output_size = values.len();
-        let l = self.initial.len() * 8;
+        let l = self.initial.len();
         let security_parameter = self.initial.len();
         let mut us: Vec<BitVec> = Vec::with_capacity(security_parameter);
         for _ in 0..security_parameter {
@@ -189,12 +182,11 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTSender
             assert_eq!(n, values[i].1.len(), "String pairs do not have same size");
             let mut qt = BitVec::with_capacity(l);
             for j in 0..l {
-                qt.set(j, q_mat[j][i]);
+                qt.push(q_mat[j][i]);
             }
             let mut hasher = self.arbitrary_hasher.clone();
             hasher.input(&(i as u64).to_bytes());
-            let mut hasher2 = self.arbitrary_hasher.clone();
-
+            let mut hasher2 = hasher.clone();
             // TODO make this nicer
             hasher.input(&qt.to_bytes());
             let hq = hasher.result(n);

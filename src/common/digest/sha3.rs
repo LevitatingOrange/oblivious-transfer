@@ -30,7 +30,8 @@ impl ArbitraryDigest for SHA3_256 {
     }
     fn result(mut self, output_size: usize) -> Vec<u8> {
         let mut vec = Vec::with_capacity(output_size);
-        self.0.squeeze(&mut vec);
+        vec.resize(output_size, 0);
+        self.0.finalize(&mut vec);
         return vec;
     }
 }

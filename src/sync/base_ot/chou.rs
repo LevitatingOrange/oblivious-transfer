@@ -10,23 +10,8 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::iter::Iterator;
 use std::vec::Vec;
-use sync::communication::{BinaryReceive, BinarySend};
+use sync::communication::{BinaryReceive, BinarySend, GetConn};
 use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
-
-#[derive(Clone)]
-pub struct ChouOrlandiOTSender<T, D, L, S>
-where
-    T: BinarySend + BinaryReceive,
-    D: Digest<OutputSize = L> + Clone,
-    L: ArrayLength<u8>,
-    S: SymmetricEncryptor<L>,
-{
-    pub conn: T,
-    hasher: D,
-    encryptor: S,
-    y: Scalar,
-    t64: EdwardsPoint,
-}
 
 fn receive_point<T>(conn: &mut T) -> Result<EdwardsPoint>
 where
@@ -50,6 +35,34 @@ where
     conn.send(p.compress().as_bytes())?;
     Ok(())
 }
+
+#[derive(Clone)]
+pub struct ChouOrlandiOTSender<T, D, L, S>
+where
+    T: BinarySend + BinaryReceive,
+    D: Digest<OutputSize = L> + Clone,
+    L: ArrayLength<u8>,
+    S: SymmetricEncryptor<L>,
+{
+    pub conn: T,
+    hasher: D,
+    encryptor: S,
+    y: Scalar,
+    t64: EdwardsPoint,
+}
+
+
+impl<
+        T: BinaryReceive + BinarySend,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricEncryptor<L>,
+    > GetConn<T> for ChouOrlandiOTSender<T, D, L, S> {
+        fn get_conn(self) -> T {
+            self.conn
+        }
+    }
+
 
 // TODO: parallelize the protocol
 
@@ -200,10 +213,23 @@ impl<
     }
 }
 
+impl<
+        T: BinaryReceive + BinarySend,
+        R: Rng,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricDecryptor<L>,
+    > GetConn<T> for ChouOrlandiOTReceiver<T, R, D, L, S>
+{
+    fn get_conn(self) -> T {
+        self.conn
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     use common::digest::sha3::SHA3_256;
+    use common::util::create_random_strings;
     use rand::OsRng;
     use rand::{thread_rng, Rng};
     use std::net::TcpListener;
@@ -219,16 +245,6 @@ mod tests {
     use tungstenite::client::connect;
     use tungstenite::server::accept;
     use url::Url;
-
-    fn create_random_strings(n: usize, l: usize) -> Vec<String> {
-        let mut rng = thread_rng();
-        let mut values = Vec::with_capacity(n);
-        for _ in 0..n {
-            let s: String = rng.gen_ascii_chars().take(l).collect();
-            values.push(s);
-        }
-        values
-    }
 
     macro_rules! generate_communication_test {
         ($client_conn:expr, $server_conn:expr, $digest:expr, $enc:expr, $dec:expr) => {
@@ -285,7 +301,7 @@ mod tests {
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTSender::new(
                 stream,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 &mut rand,
             ).unwrap();
@@ -301,7 +317,7 @@ mod tests {
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTReceiver::new(
                 stream,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 rand,
             ).unwrap();
@@ -328,7 +344,7 @@ mod tests {
                     .accept()
                     .unwrap()
                     .0,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
@@ -341,7 +357,7 @@ mod tests {
         let client = thread::spawn(move || {
             let mut ot = ChouOrlandiOTReceiver::new(
                 TcpStream::connect("127.0.0.1:1237").unwrap(),
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
@@ -369,7 +385,7 @@ mod tests {
                     .accept()
                     .unwrap()
                     .0,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 &mut OsRng::new().unwrap(),
             ).unwrap();
@@ -397,7 +413,7 @@ mod tests {
             );
             let mut ot = ChouOrlandiOTReceiver::new(
                 corrupted_channel,
-                Sha3_256::default(),
+                SHA3_256::default(),
                 DummyCryptoProvider::default(),
                 OsRng::new().unwrap(),
             ).unwrap();
@@ -418,7 +434,7 @@ mod tests {
                 .unwrap()
                 .0,
             TcpStream::connect("127.0.0.1:1239").unwrap(),
-            Sha3_256::default(),
+            SHA3_256::default(),
             DummyCryptoProvider::default(),
             DummyCryptoProvider::default()
         );
@@ -433,7 +449,7 @@ mod tests {
                 .unwrap()
                 .0,
             TcpStream::connect("127.0.0.1:1240").unwrap(),
-            Sha3_256::default(),
+            SHA3_256::default(),
             SodiumCryptoProvider::default(),
             SodiumCryptoProvider::default()
         );
@@ -452,7 +468,7 @@ mod tests {
             connect(Url::parse("ws://localhost:1241/socket").unwrap())
                 .unwrap()
                 .0,
-            Sha3_256::default(),
+            SHA3_256::default(),
             DummyCryptoProvider::default(),
             DummyCryptoProvider::default()
         );
@@ -471,7 +487,7 @@ mod tests {
             connect(Url::parse("ws://localhost:1242/socket").unwrap())
                 .unwrap()
                 .0,
-            Sha3_256::default(),
+            SHA3_256::default(),
             SodiumCryptoProvider::default(),
             SodiumCryptoProvider::default()
         );
@@ -490,7 +506,7 @@ mod tests {
             connect(Url::parse("ws://localhost:1243/socket").unwrap())
                 .unwrap()
                 .0,
-            Sha3_256::default(),
+            SHA3_256::default(),
             AesCryptoProvider::default(),
             AesCryptoProvider::default()
         );

@@ -12,3 +12,7 @@ pub trait BinarySend {
 pub trait BinaryReceive {
     fn receive(&mut self) -> Result<Vec<u8>>;
 }
+
+pub trait GetConn<C: BinarySend + BinaryReceive> {
+    fn get_conn(self) -> C;
+}
