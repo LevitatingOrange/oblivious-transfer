@@ -2,6 +2,7 @@ use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
 
+use common::digest::Digest;
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 use errors::*;
@@ -9,7 +10,6 @@ use generic_array::{ArrayLength, GenericArray};
 use rand::Rng;
 use std::iter::Iterator;
 use std::vec::Vec;
-use common::digest::Digest;
 use sync::communication::{BinaryReceive, BinarySend};
 use sync::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 
@@ -203,6 +203,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::digest::sha3::SHA3_256;
     use rand::OsRng;
     use rand::{thread_rng, Rng};
     use std::net::TcpListener;
@@ -211,7 +212,6 @@ mod tests {
     use std::thread;
     use std::time::Duration;
     use std::time::Instant;
-    use common::digest::sha3::SHA3_256;
     use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::communication::corrupted::CorruptedChannel;
     use sync::crypto::{aes::AesCryptoProvider, dummy::DummyCryptoProvider,

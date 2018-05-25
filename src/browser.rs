@@ -12,19 +12,19 @@ use futures::prelude::*;
 use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::async::communication::websockets::*;
 use ot::async::crypto::aes_browser::AesCryptoProvider;
-use ot::errors::*;
 use ot::common::digest::sha3::SHA3_256;
+use ot::errors::*;
 use rand::{ChaChaRng, SeedableRng};
 use std::sync::{Arc, Mutex};
 use stdweb::traits::*;
 use stdweb::unstable::TryInto;
-use stdweb::web::EventListenerHandle;
-use stdweb::web::WebSocket;
-use stdweb::PromiseFuture;
 use stdweb::web::event::{ClickEvent, SocketCloseEvent};
 use stdweb::web::html_element::InputElement;
+use stdweb::web::EventListenerHandle;
 use stdweb::web::TypedArray;
+use stdweb::web::WebSocket;
 use stdweb::web::{document, Element, HtmlElement};
+use stdweb::PromiseFuture;
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()

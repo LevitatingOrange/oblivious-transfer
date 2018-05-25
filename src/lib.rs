@@ -1,6 +1,7 @@
 #![recursion_limit = "1024"]
 #![feature(proc_macro, generators)]
 #![feature(iterator_flatten)]
+#![feature(int_to_from_bytes)]
 
 // #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 // extern crate tokio;
@@ -16,13 +17,15 @@ extern crate tungstenite;
 #[macro_use]
 extern crate arrayref;
 
-extern crate smallbitvec;
+extern crate bit_vec;
 
 extern crate curve25519_dalek;
 extern crate generic_array;
 extern crate rand;
-extern crate url;
 extern crate tiny_keccak;
+extern crate url;
+#[macro_use]
+extern crate itertools;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate rust_sodium;
@@ -64,6 +67,6 @@ pub mod errors {
 // TODO for now, async only works on the client
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod async;
+pub mod common;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod sync;
-pub mod common;

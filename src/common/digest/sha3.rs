@@ -1,7 +1,6 @@
+use super::{ArbitraryDigest, Digest};
+use generic_array::{typenum::U32, GenericArray};
 use tiny_keccak::Keccak;
-use super::Digest;
-use generic_array::{ArrayLength, GenericArray, typenum::U32};
-
 
 /// Wrapper type to implement this library's Digest trait for Sha3-256 (Keccak)
 #[derive(Clone)]
@@ -13,7 +12,6 @@ impl Default for SHA3_256 {
     }
 }
 
-
 impl Digest for SHA3_256 {
     type OutputSize = U32;
     fn input(&mut self, data: &[u8]) {
@@ -23,5 +21,16 @@ impl Digest for SHA3_256 {
         let mut arr: GenericArray<u8, Self::OutputSize> = Default::default();
         self.0.finalize(&mut arr);
         return arr;
+    }
+}
+
+impl ArbitraryDigest for SHA3_256 {
+    fn input(&mut self, data: &[u8]) {
+        self.0.update(data);
+    }
+    fn result(mut self, output_size: usize) -> Vec<u8> {
+        let mut vec = Vec::with_capacity(output_size);
+        self.0.squeeze(&mut vec);
+        return vec;
     }
 }

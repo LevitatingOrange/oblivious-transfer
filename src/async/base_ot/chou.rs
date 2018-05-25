@@ -1,9 +1,9 @@
 use async::communication::websockets::*;
 use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
+use common::digest::Digest;
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
 use curve25519_dalek::edwards::*;
 use curve25519_dalek::scalar::*;
-use common::digest::Digest;
 /// chou and orlandis 1-out-of-n OT
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 /// TODO: make this parallel

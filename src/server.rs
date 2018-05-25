@@ -4,11 +4,11 @@ extern crate ot;
 extern crate rand;
 extern crate tungstenite;
 
+use ot::common::digest::sha3::SHA3_256;
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::sync::crypto::aes::AesCryptoProvider;
 use rand::{ChaChaRng, OsRng, Rng, SeedableRng};
-use ot::common::digest::sha3::SHA3_256;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
