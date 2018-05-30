@@ -54,13 +54,15 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
     let handle = ws.clone();
     let lock = handle.lock().unwrap();
     console!(log, "Trying to receive value...");
-    let seed: TypedArray<u32> = js!{
-        var array = new Uint32Array(8);
+    let seed: TypedArray<u8> = js!{
+        var array = new Uint8Array(32);
         window.crypto.getRandomValues(array);
         return array;
     }.try_into()
         .unwrap();
-    let rng = ChaChaRng::from_seed(&seed.to_vec());
+    let mut seed_arr: [u8; 32] = Default::default();
+    seed_arr.copy_from_slice(&seed.to_vec());
+    let rng = ChaChaRng::from_seed(seed_arr);
     let future = lock.write("send".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTReceiver::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
@@ -89,13 +91,15 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     let lock = handle.lock().unwrap();
     // TODO: is this rng secure? Read the crate doc and about pcgs
     console!(log, "Trying to send values...");
-    let seed: TypedArray<u32> = js!{
-        var array = new Uint32Array(8);
+    let seed: TypedArray<u8> = js!{
+        var array = new Uint8Array(32);
         window.crypto.getRandomValues(array);
         return array;
     }.try_into()
         .unwrap();
-    let mut rng = ChaChaRng::from_seed(&seed.to_vec());
+    let mut seed_arr: [u8; 32] = Default::default();
+    seed_arr.copy_from_slice(&seed.to_vec());
+    let mut rng = ChaChaRng::from_seed(seed_arr);
     let future = lock.write("receive".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTSender::new(

@@ -7,7 +7,7 @@ use common::digest::Digest;
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 use errors::*;
 use generic_array::{ArrayLength, GenericArray};
-use rand::Rng;
+use rand::{RngCore, CryptoRng};
 use std::iter::Iterator;
 use std::vec::Vec;
 use sync::communication::{BinaryReceive, BinarySend, GetConn};
@@ -73,11 +73,11 @@ impl<
         S: SymmetricEncryptor<L>,
     > ChouOrlandiOTSender<T, D, L, S>
 {
-    pub fn new<R>(mut conn: T, mut hasher: D, encryptor: S, rng: &mut R) -> Result<Self>
+    pub fn new<R>(mut conn: T, mut hasher: D, encryptor: S, mut rng: R) -> Result<Self>
     where
-        R: Rng,
+        R: RngCore + CryptoRng,
     {
-        let y = Scalar::random(rng);
+        let y = Scalar::random(&mut rng);
         let mut s = &y * &ED25519_BASEPOINT_TABLE;
 
         // we dont send s directly, instead we add a point from the eight torsion subgroup.
@@ -138,7 +138,7 @@ impl<
 pub struct ChouOrlandiOTReceiver<T, R, D, L, S>
 where
     T: BinaryReceive + BinarySend,
-    R: Rng,
+    R: RngCore + CryptoRng,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
     S: SymmetricDecryptor<L>,
@@ -152,7 +152,7 @@ where
 
 impl<
         T: BinaryReceive + BinarySend,
-        R: Rng,
+        R: RngCore + CryptoRng,
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricDecryptor<L>,
@@ -196,7 +196,7 @@ impl<
 
 impl<
         T: BinaryReceive + BinarySend,
-        R: Rng,
+        R: RngCore + CryptoRng,
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricDecryptor<L>,
@@ -215,7 +215,7 @@ impl<
 
 impl<
         T: BinaryReceive + BinarySend,
-        R: Rng,
+        R: RngCore + CryptoRng,
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricDecryptor<L>,
@@ -230,8 +230,7 @@ mod tests {
     use super::*;
     use common::digest::sha3::SHA3_256;
     use common::util::create_random_strings;
-    use rand::OsRng;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng, ChaChaRng, FromEntropy};
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::sync::Arc;
@@ -256,25 +255,27 @@ mod tests {
             let vals = Arc::clone(&values);
             let vals2 = Arc::clone(&values);
 
+
             let server = thread::spawn(move || {
                 let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
-
+                let rng = ChaChaRng::from_entropy();
                 let mut ot = ChouOrlandiOTSender::new(
                     $client_conn,
                     $digest,
                     $enc,
-                    &mut OsRng::new().unwrap(),
+                    rng
                 ).unwrap();
                 ot.send(vals).unwrap()
             });
             let client = thread::spawn(move || {
                 // TODO: make this better
                 thread::sleep(Duration::new(1, 0));
+                let rng = ChaChaRng::from_entropy();
                 let mut ot = ChouOrlandiOTReceiver::new(
                     $server_conn,
                     $digest,
                     $dec,
-                    OsRng::new().unwrap(),
+                    rng
                 ).unwrap();
                 ot.receive(c as usize, n).unwrap()
             });
@@ -290,6 +291,7 @@ mod tests {
 
     #[test]
     pub fn chou_ot_key_exchange() {
+        
         let index = 3;
         let server = thread::spawn(move || {
             let stream = TcpListener::bind("127.0.0.1:1236")
@@ -297,13 +299,13 @@ mod tests {
                 .accept()
                 .unwrap()
                 .0;
-            let mut rand = OsRng::new().unwrap();
+            let rng = ChaChaRng::from_entropy();
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTSender::new(
                 stream,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                &mut rand,
+                rng,
             ).unwrap();
             println!("Chou ot send new took {:?}", now.elapsed());
             now = Instant::now();
@@ -313,13 +315,13 @@ mod tests {
         });
         let client = thread::spawn(move || {
             let stream = TcpStream::connect("127.0.0.1:1236").unwrap();
-            let rand = OsRng::new().unwrap();
+            let rng = ChaChaRng::from_entropy();
             let mut now = Instant::now();
             let mut ot = ChouOrlandiOTReceiver::new(
                 stream,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                rand,
+                rng,
             ).unwrap();
             println!("Chou ot receive new took {:?}", now.elapsed());
             now = Instant::now();
@@ -346,7 +348,7 @@ mod tests {
                     .0,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                &mut OsRng::new().unwrap(),
+                ChaChaRng::from_entropy()
             ).unwrap();
             INDICES
                 .iter()
@@ -359,7 +361,7 @@ mod tests {
                 TcpStream::connect("127.0.0.1:1237").unwrap(),
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                OsRng::new().unwrap(),
+                ChaChaRng::from_entropy()
             ).unwrap();
             INDICES
                 .iter()
@@ -387,7 +389,7 @@ mod tests {
                     .0,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                &mut OsRng::new().unwrap(),
+                ChaChaRng::from_entropy()
             ).unwrap();
             ot.compute_keys(10).unwrap()
         });
@@ -415,7 +417,7 @@ mod tests {
                 corrupted_channel,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                OsRng::new().unwrap(),
+                ChaChaRng::from_entropy()
             ).unwrap();
             ot.compute_key(0).unwrap()
         });

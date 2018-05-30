@@ -8,42 +8,43 @@ use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::crypto::aes::AesCryptoProvider;
 use ot::sync::ot_extension::asharov::{AsharovExtendedOTReceiver, AsharovExtendedOTSender};
 use ot::sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
-use rand::{ChaChaRng, OsRng, Rng, SeedableRng};
+use rand::{ChaChaRng};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::time::{Instant};
+use rand::FromEntropy;
 
 fn main() {
-    let len = 10000;
+    let len = 100;
     let n = 5;
-    let security_param = 16;
+    let security_param = 32;
 
     let choices = generate_random_choices(len);
     let values = generate_random_string_pairs(n, len);
-    let seed: [u32; 8] = OsRng::new().unwrap().gen();
 
     println!("Choices: {:?}", choices);
     println!("Values: {:?}", values);
-
+    
     let server = thread::spawn(move || {
         let ot_stream = TcpListener::bind("127.0.0.1:1236")
             .unwrap()
             .accept()
             .unwrap()
             .0;
+        let rng = ChaChaRng::from_entropy();
         let mut now = Instant::now();
         let ot = ChouOrlandiOTSender::new(
             ot_stream,
             SHA3_256::default(),
             AesCryptoProvider::default(),
-            &mut ChaChaRng::from_seed(&seed),
+            rng.clone(),
         ).unwrap();
         println!("Chou ot sender creation took {:?}", now.elapsed());
         now = Instant::now();
         let ot_ext = AsharovExtendedOTReceiver::new(
             SHA3_256::default(),
             ot,
-            ChaChaRng::from_seed(&seed),
+            rng.clone(),
             security_param,
         ).unwrap();
         println!("Asharaov receiver creation took {:?}", now.elapsed());
@@ -59,19 +60,20 @@ fn main() {
     });
     let client = thread::spawn(move || {
         let ot_stream = TcpStream::connect("127.0.0.1:1236").unwrap();
+        let rng = ChaChaRng::from_entropy();
         let mut now = Instant::now();
         let ot = ChouOrlandiOTReceiver::new(
             ot_stream,
             SHA3_256::default(),
             AesCryptoProvider::default(),
-            ChaChaRng::from_seed(&seed),
+            rng.clone(),
         ).unwrap();
         println!("Chou ot receiver creation took {:?}", now.elapsed());
         now = Instant::now();
         let ot_ext = AsharovExtendedOTSender::new(
             SHA3_256::default(),
             ot,
-            ChaChaRng::from_seed(&seed),
+            rng.clone(),
             security_param,
         ).unwrap();
         println!("Asharaov sender creation took {:?}", now.elapsed());

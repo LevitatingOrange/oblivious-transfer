@@ -11,7 +11,7 @@ use errors::*;
 use futures::prelude::*;
 use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
-use rand::Rng;
+use rand::{RngCore, CryptoRng};
 use std::sync::{Arc, Mutex};
 
 //use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
@@ -70,7 +70,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
         rng: &mut R,
     ) -> impl Future<Item = Self, Error = Error>
     where
-        R: Rng,
+        R: RngCore + CryptoRng,
     {
         let y = Scalar::random(rng);
         let mut s = &y * &ED25519_BASEPOINT_TABLE;
@@ -154,7 +154,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
 #[derive(Clone)]
 pub struct ChouOrlandiOTReceiver<R, D, L, S>
 where
-    R: Rng,
+    R: RngCore + CryptoRng,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
     S: SymmetricDecryptor<L>,
@@ -166,7 +166,7 @@ where
     s8: EdwardsPoint,
 }
 
-impl<R: Rng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricDecryptor<L>>
+impl<R: RngCore + CryptoRng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricDecryptor<L>>
     ChouOrlandiOTReceiver<R, D, L, S>
 {
     pub fn new(

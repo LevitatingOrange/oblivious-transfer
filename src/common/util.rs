@@ -1,5 +1,5 @@
 use bit_vec::BitVec;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, distributions::Alphanumeric};
 
 pub fn bv_truncate(bytes: &[u8], length: usize) -> BitVec {
     let mut bv = BitVec::from_bytes(bytes);
@@ -11,7 +11,7 @@ pub fn create_random_strings(n: usize, l: usize) -> Vec<String> {
     let mut rng = thread_rng();
     let mut values = Vec::with_capacity(n);
     for _ in 0..n {
-        let s: String = rng.gen_ascii_chars().take(l).collect();
+        let s: String = rng.sample_iter(&Alphanumeric).take(l).collect();
         values.push(s);
     }
     values
@@ -21,8 +21,8 @@ pub fn generate_random_string_pairs(n: usize, pair_num: usize) -> Vec<(String, S
     let mut rng = thread_rng();
     let mut values = Vec::with_capacity(pair_num);
     for _ in 0..pair_num {
-        let s1: String = rng.gen_ascii_chars().take(n).collect();
-        let s2: String = rng.gen_ascii_chars().take(n).collect();
+        let s1: String = rng.sample_iter(&Alphanumeric).take(n).collect();
+        let s2: String = rng.sample_iter(&Alphanumeric).take(n).collect();
         values.push((s1, s2));
     }
     values
