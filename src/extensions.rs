@@ -3,7 +3,6 @@ extern crate ot;
 extern crate rand;
 
 use ot::common::digest::sha3::SHA3_256;
-use ot::common::digest::ArbitraryDigest;
 use ot::common::util::{generate_random_choices, generate_random_string_pairs};
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::crypto::aes::AesCryptoProvider;
@@ -12,10 +11,10 @@ use ot::sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
 use rand::{ChaChaRng, OsRng, Rng, SeedableRng};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 
 fn main() {
-    let len = 100;
+    let len = 10000;
     let n = 5;
     let security_param = 16;
 
@@ -49,15 +48,12 @@ fn main() {
         ).unwrap();
         println!("Asharaov receiver creation took {:?}", now.elapsed());
         now = Instant::now();
-        // let values: Vec<String> = ot_ext
-        //     .receive(choices)
-        //     .unwrap()
-        //     .into_iter()
-        //     .map(|v| String::from_utf8(v).unwrap())
-        //     .collect();
-        let values: Vec<Vec<u8>> = ot_ext
+        let values: Vec<String> = ot_ext
             .receive(choices)
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|v| String::from_utf8(v).unwrap())
+            .collect();
         println!("Asharaov receive took {:?}", now.elapsed());
         println!("Received values: {:?}", values);
     });
@@ -84,7 +80,6 @@ fn main() {
             .iter()
             .map(|(s1, s2)| (s1.as_bytes(), s2.as_bytes()))
             .collect();
-        println!("Byte values {:?}", values);
         ot_ext.send(values).unwrap();
         println!("Asharaov send took {:?}", now.elapsed());
     });

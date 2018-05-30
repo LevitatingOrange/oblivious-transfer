@@ -79,6 +79,8 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiv
         for ((_, k1), t) in self.initial_pairs.iter().zip(&t_mat) {
             assert_eq!(t.len(), output_size, "internal error, lengths don't match.");
             let gk = trunc_hash(self.arbitrary_hasher.clone(), output_size, k1);
+            assert_eq!(t.len(), gk.len(), "internal error, lengths don't match.");
+            assert_eq!(t.len(), choice_bits.len(), "internal error, lengths don't match.");
             let u: BitVec = izip!(t, gk, &choice_bits)
                 .map(|(t, k, r)| t ^ k ^ r)
                 .collect();
@@ -167,12 +169,14 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTSender
         for _ in 0..security_parameter {
             us.push(bv_truncate(&self.conn.receive()?, output_size));
         }
+        assert_eq!(us.len(), self.initial.len(), "internal error, lengths don't match.");
+        assert_eq!(us.len(), self.random_choices.len(), "internal error, lengths don't match.");
         let q_mat: Vec<BitVec> = izip!(&self.initial, &us, &self.random_choices)
             .map(|(k, u, s)| {
                 let gk = trunc_hash(self.arbitrary_hasher.clone(), output_size, k);
                 u.iter()
                     .zip(gk)
-                    .map(|(u, k)| (((s as u8) * (u as u8)) ^ (k as u8)) == 0)
+                    .map(|(u, k)| (((s as u8) * (u as u8)) ^ (k as u8)) == 1)
                     .collect()
             })
             .collect();
