@@ -11,7 +11,7 @@ use errors::*;
 use futures::prelude::*;
 use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
-use rand::{RngCore, CryptoRng};
+use rand::{CryptoRng, RngCore};
 use std::sync::{Arc, Mutex};
 
 //use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
@@ -166,8 +166,12 @@ where
     s8: EdwardsPoint,
 }
 
-impl<R: RngCore + CryptoRng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricDecryptor<L>>
-    ChouOrlandiOTReceiver<R, D, L, S>
+impl<
+        R: RngCore + CryptoRng,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricDecryptor<L>,
+    > ChouOrlandiOTReceiver<R, D, L, S>
 {
     pub fn new(
         conn: Arc<Mutex<WasmWebSocket>>,
@@ -223,7 +227,8 @@ impl<R: RngCore + CryptoRng, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u
                     move |(conn, i): (Arc<Mutex<WasmWebSocket>>, usize)| {
                         if i < n {
                             let next_conn = conn.clone();
-                            let fut = conn.lock()
+                            let fut = conn
+                                .lock()
                                 .unwrap()
                                 .read()
                                 .map(move |(_, buf)| (buf, (next_conn, i + 1)));

@@ -7,7 +7,7 @@ use common::digest::Digest;
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 use errors::*;
 use generic_array::{ArrayLength, GenericArray};
-use rand::{RngCore, CryptoRng};
+use rand::{CryptoRng, RngCore};
 use std::iter::Iterator;
 use std::vec::Vec;
 use sync::communication::{BinaryReceive, BinarySend, GetConn};
@@ -51,18 +51,17 @@ where
     t64: EdwardsPoint,
 }
 
-
 impl<
         T: BinaryReceive + BinarySend,
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricEncryptor<L>,
-    > GetConn<T> for ChouOrlandiOTSender<T, D, L, S> {
-        fn get_conn(self) -> T {
-            self.conn
-        }
+    > GetConn<T> for ChouOrlandiOTSender<T, D, L, S>
+{
+    fn get_conn(self) -> T {
+        self.conn
     }
-
+}
 
 // TODO: parallelize the protocol
 
@@ -230,7 +229,7 @@ mod tests {
     use super::*;
     use common::digest::sha3::SHA3_256;
     use common::util::create_random_strings;
-    use rand::{Rng, thread_rng, ChaChaRng, FromEntropy};
+    use rand::{thread_rng, ChaChaRng, FromEntropy, Rng};
     use std::net::TcpListener;
     use std::net::TcpStream;
     use std::sync::Arc;
@@ -239,8 +238,9 @@ mod tests {
     use std::time::Instant;
     use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::communication::corrupted::CorruptedChannel;
-    use sync::crypto::{aes::AesCryptoProvider, dummy::DummyCryptoProvider,
-                       sodium::SodiumCryptoProvider};
+    use sync::crypto::{
+        aes::AesCryptoProvider, dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider,
+    };
     use tungstenite::client::connect;
     use tungstenite::server::accept;
     use url::Url;
@@ -255,28 +255,19 @@ mod tests {
             let vals = Arc::clone(&values);
             let vals2 = Arc::clone(&values);
 
-
             let server = thread::spawn(move || {
                 let vals: Vec<&[u8]> = vals.iter().map(|s| s.as_bytes()).collect();
                 let rng = ChaChaRng::from_entropy();
-                let mut ot = ChouOrlandiOTSender::new(
-                    $client_conn,
-                    $digest,
-                    $enc,
-                    rng
-                ).unwrap();
+                let mut ot =
+                    ChouOrlandiOTSender::new($client_conn, $digest, $enc, rng).unwrap();
                 ot.send(vals).unwrap()
             });
             let client = thread::spawn(move || {
                 // TODO: make this better
                 thread::sleep(Duration::new(1, 0));
                 let rng = ChaChaRng::from_entropy();
-                let mut ot = ChouOrlandiOTReceiver::new(
-                    $server_conn,
-                    $digest,
-                    $dec,
-                    rng
-                ).unwrap();
+                let mut ot =
+                    ChouOrlandiOTReceiver::new($server_conn, $digest, $dec, rng).unwrap();
                 ot.receive(c as usize, n).unwrap()
             });
             let _ = server.join().unwrap();
@@ -291,7 +282,6 @@ mod tests {
 
     #[test]
     pub fn chou_ot_key_exchange() {
-        
         let index = 3;
         let server = thread::spawn(move || {
             let stream = TcpListener::bind("127.0.0.1:1236")
@@ -348,7 +338,7 @@ mod tests {
                     .0,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                ChaChaRng::from_entropy()
+                ChaChaRng::from_entropy(),
             ).unwrap();
             INDICES
                 .iter()
@@ -361,7 +351,7 @@ mod tests {
                 TcpStream::connect("127.0.0.1:1237").unwrap(),
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                ChaChaRng::from_entropy()
+                ChaChaRng::from_entropy(),
             ).unwrap();
             INDICES
                 .iter()
@@ -389,7 +379,7 @@ mod tests {
                     .0,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                ChaChaRng::from_entropy()
+                ChaChaRng::from_entropy(),
             ).unwrap();
             ot.compute_keys(10).unwrap()
         });
@@ -401,10 +391,12 @@ mod tests {
         fn eavesdrop(_: &mut (), buf: &[u8]) {
             let mut new_buf: [u8; 32] = Default::default();
             new_buf.copy_from_slice(buf);
-            assert!(!CompressedEdwardsY(new_buf)
-                .decompress()
-                .unwrap()
-                .is_torsion_free())
+            assert!(
+                !CompressedEdwardsY(new_buf)
+                    .decompress()
+                    .unwrap()
+                    .is_torsion_free()
+            )
         }
 
         let client = thread::spawn(move || {
@@ -417,7 +409,7 @@ mod tests {
                 corrupted_channel,
                 SHA3_256::default(),
                 DummyCryptoProvider::default(),
-                ChaChaRng::from_entropy()
+                ChaChaRng::from_entropy(),
             ).unwrap();
             ot.compute_key(0).unwrap()
         });

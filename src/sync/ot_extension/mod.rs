@@ -1,7 +1,7 @@
 use bit_vec::BitVec;
 use errors::*;
 
-pub mod asharov;
+pub mod iknp;
 
 pub trait ExtendedOTSender {
     fn send(self, values: Vec<(&[u8], &[u8])>) -> Result<()>;

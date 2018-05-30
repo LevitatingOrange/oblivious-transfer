@@ -3,7 +3,6 @@ extern crate futures;
 extern crate stdweb;
 extern crate error_chain;
 extern crate ot;
-extern crate pcg_rand;
 extern crate rand;
 extern crate tiny_keccak;
 
@@ -63,7 +62,8 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
     let mut seed_arr: [u8; 32] = Default::default();
     seed_arr.copy_from_slice(&seed.to_vec());
     let rng = ChaChaRng::from_seed(seed_arr);
-    let future = lock.write("send".as_bytes().to_owned())
+    let future = lock
+        .write("send".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTReceiver::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
         })
@@ -100,7 +100,8 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     let mut seed_arr: [u8; 32] = Default::default();
     seed_arr.copy_from_slice(&seed.to_vec());
     let mut rng = ChaChaRng::from_seed(seed_arr);
-    let future = lock.write("receive".as_bytes().to_owned())
+    let future = lock
+        .write("receive".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTSender::new(
                 ws,

@@ -1,5 +1,5 @@
 use bit_vec::BitVec;
-use rand::{thread_rng, Rng, distributions::Alphanumeric};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 pub fn bv_truncate(bytes: &[u8], length: usize) -> BitVec {
     let mut bv = BitVec::from_bytes(bytes);

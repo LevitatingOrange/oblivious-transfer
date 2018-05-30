@@ -79,7 +79,7 @@ fn main() {
                             stream,
                             SHA3_256::default(),
                             AesCryptoProvider::default(),
-                            rng
+                            rng,
                         ).unwrap();
                         let vals = args.lock().unwrap().values.to_owned();
                         sender
