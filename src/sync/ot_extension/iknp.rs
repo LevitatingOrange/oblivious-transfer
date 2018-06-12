@@ -1,25 +1,14 @@
+//! Ishai et al's semi-honest ot extension protocol.
+
 use super::{ExtendedOTReceiver, ExtendedOTSender};
 use bit_vec::BitVec;
 use common::digest::ArbitraryDigest;
-use common::util::bv_truncate;
+use common::util::{bv_truncate, trunc_hash};
 use errors::*;
-use rand::Rng;
+use rand::{CryptoRng, Rng, RngCore};
 use sync::base_ot::BaseOTReceiver;
 use sync::base_ot::BaseOTSender;
 use sync::communication::{BinaryReceive, BinarySend, GetConn};
-
-fn trunc_hash<A>(mut hasher: A, length: usize, data: &[u8]) -> BitVec
-where
-    A: ArbitraryDigest,
-{
-    hasher.input(data);
-    let mut byte_len = length / 8;
-    if length % 8 != 0 {
-        byte_len += 1;
-    }
-    let v = hasher.result(byte_len);
-    bv_truncate(&v, length)
-}
 
 pub struct IKNPExtendedOTReceiver<T, A>
 where
@@ -41,7 +30,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTRe
     ) -> Result<Self>
     where
         S: BaseOTSender + GetConn<T>,
-        R: Rng,
+        R: RngCore + CryptoRng,
     {
         let l = security_param * 8;
         let mut initial_pairs = Vec::with_capacity(l);
@@ -142,7 +131,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTSe
     ) -> Result<Self>
     where
         S: BaseOTReceiver + GetConn<T>,
-        R: Rng,
+        R: RngCore + CryptoRng,
     {
         let l = security_param * 8;
         let mut random_choices = BitVec::with_capacity(security_param);
@@ -239,7 +228,7 @@ mod tests {
 
     #[test]
     fn iknp_test() {
-        let len = 10000;
+        let len = 100;
         let n = 200;
         let security_param = 16;
 

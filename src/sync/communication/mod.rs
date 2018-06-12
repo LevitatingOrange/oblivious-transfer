@@ -1,3 +1,8 @@
+//! This module provides utility traits and wrappers
+//! for basic communication needed by our protocols.
+//! While simple TCP and Websocket (courtesy of tungestenite)
+//! implementations of these traits are provided it should
+//! be trivial to implement them for other means of communications.
 use errors::*;
 use std::vec::Vec;
 

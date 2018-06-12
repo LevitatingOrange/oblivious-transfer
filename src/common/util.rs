@@ -1,4 +1,6 @@
+use super::digest::{ArbitraryDigest, Digest};
 use bit_vec::BitVec;
+use generic_array::GenericArray;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 pub fn bv_truncate(bytes: &[u8], length: usize) -> BitVec {
@@ -39,4 +41,25 @@ pub fn generate_random_choices(num: usize) -> BitVec {
         v.push(rng.gen());
     }
     bv_truncate(&v, num)
+}
+
+pub fn trunc_hash<A>(mut hasher: A, length: usize, data: &[u8]) -> BitVec
+where
+    A: ArbitraryDigest,
+{
+    hasher.input(data);
+    let mut byte_len = length / 8;
+    if length % 8 != 0 {
+        byte_len += 1;
+    }
+    let v = hasher.result(byte_len);
+    bv_truncate(&v, length)
+}
+
+pub fn hash<D>(mut hasher: D, val: BitVec) -> GenericArray<u8, D::OutputSize>
+where
+    D: Digest,
+{
+    hasher.input(&val.to_bytes());
+    hasher.result()
 }

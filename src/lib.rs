@@ -1,7 +1,34 @@
+//! # An oblivious transfer library in rust and for the web
+//!
+//! [Oblivious transfer](https://en.wikipedia.org/wiki/Oblivious_transfer) (OT) is an important cryptographic primitive.
+//! With it, one could implement any cryptographic protocol (CITE). While for some protocols faster alternatives exist,
+//! things like secure function evaluation (SFE) and multi-party computation (MPC) rely on OT.
+//!
+//! ## Structure
+//!
+//! At the moment this library is split in two: one synchronous implementation and one asynchronous.
+//! The asynchronous part is suited to run on the browser, where only one thread is avalable. The synchronous part can be
+//! used on native hosts. As of this writing, incompatibilities between tokio and the futures library forbid
+//! asynchronous OT on a native host. We hope to change this as soon as tokio gets updated.  
+//!
+//! As OT requires some sort of public-key-cryptography (CITE, is this correct like this?) it's speed always is a hindering factor.
+//! It has been shown though (CITE) that one can extend a set of basic OT transfers to transfer a much larger amount of data
+//! with symmetric crpytography primtives (e.g. hashing).
+//!
+//! Henceforth we have implemented the OT-variant SimpleOT by Chou and Orlandi (CITE), the
+//! semi-honest OT-extension protocol of Ishai et al. (CITE) and a malicious-secure augmentation
+//! of the latter by Asharaov et al. (CITE).
+//!
+//! Recent revelations (CITE) have shown that SimpleOT is not malicious secure and as such
+//! composing it with the OT extension of Asharaov will *not* provide security against active adversaries.
+
 #![recursion_limit = "1024"]
 #![feature(proc_macro, generators)]
 #![feature(iterator_flatten)]
 #![feature(int_to_from_bytes)]
+#![feature(iterator_repeat_with)]
+
+//#![warn(missing_docs)]
 
 // #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 // extern crate tokio;
