@@ -9,7 +9,9 @@ extern crate tiny_keccak;
 use error_chain::ChainedError;
 use futures::prelude::*;
 use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
+use ot::async::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::async::communication::websockets::*;
+use ot::async::communication::BinarySend;
 use ot::async::crypto::aes_browser::AesCryptoProvider;
 use ot::common::digest::sha3::SHA3_256;
 use ot::errors::*;
@@ -24,8 +26,6 @@ use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
 use stdweb::web::{document, Element, HtmlElement};
 use stdweb::PromiseFuture;
-use ot::async::communication::{BinarySend};
-use ot::async::base_ot::{BaseOTSender, BaseOTReceiver};
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()
@@ -105,12 +105,7 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     let future = lock
         .send("receive".as_bytes().to_owned())
         .and_then(move |_| {
-            ChouOrlandiOTSender::new(
-                ws,
-                SHA3_256::default(),
-                AesCryptoProvider::default(),
-                rng,
-            )
+            ChouOrlandiOTSender::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
         })
         .and_then(move |s| s.send(values))
         .map(|_| console!(log, "values sent!"))

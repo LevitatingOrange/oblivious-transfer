@@ -333,9 +333,9 @@ mod tests {
     use std::net::{TcpListener, TcpStream};
     use std::thread;
     use std::time::Instant;
-    use sync::communication::{BinarySend, BinaryReceive};
-    use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
+    use sync::base_ot::{BaseOTReceiver, BaseOTSender};
+    use sync::communication::{BinaryReceive, BinarySend};
     use sync::crypto::aes::AesCryptoProvider;
     use sync::ot_extension::alsz::{ALSZExtendedOTReceiver, ALSZExtendedOTSender};
     use sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
@@ -372,9 +372,13 @@ mod tests {
             ).unwrap();
             println!("Chou ot sender creation took {:?}", now.elapsed());
             now = Instant::now();
-            let ot_ext =
-                ALSZExtendedOTReceiver::new(SHA3_256::default(), ot, rng.clone(), security_param, stat_security_param)
-                    .unwrap();
+            let ot_ext = ALSZExtendedOTReceiver::new(
+                SHA3_256::default(),
+                ot,
+                rng.clone(),
+                security_param,
+                stat_security_param,
+            ).unwrap();
             println!("ALSZ receiver creation took {:?}", now.elapsed());
             now = Instant::now();
             let values: Vec<String> = ot_ext
@@ -399,9 +403,13 @@ mod tests {
             ).unwrap();
             println!("chou ot receiver creation took {:?}", now.elapsed());
             now = Instant::now();
-            let ot_ext =
-                ALSZExtendedOTSender::new(SHA3_256::default(), ot, rng.clone(), security_param, stat_security_param)
-                    .unwrap();
+            let ot_ext = ALSZExtendedOTSender::new(
+                SHA3_256::default(),
+                ot,
+                rng.clone(),
+                security_param,
+                stat_security_param,
+            ).unwrap();
             println!("ALSZ sender creation took {:?}", now.elapsed());
             now = Instant::now();
             let values: Vec<(&[u8], &[u8])> = values2

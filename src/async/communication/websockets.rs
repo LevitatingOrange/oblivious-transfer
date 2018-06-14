@@ -1,3 +1,6 @@
+
+
+use super::{BinaryReceive, BinarySend};
 use errors::*;
 use futures::prelude::task::{Context, Waker};
 use futures::prelude::*;
@@ -8,14 +11,15 @@ use stdweb::traits::*;
 use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
-use super::{BinarySend, BinaryReceive};
 
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
+/// This is a wrapper around stdweb's websockets so we can use them
+/// with futures (websockets in the browser are callback-based and do not implement
+/// promises from the get-go)
 pub struct WasmWebSocket {
     me: Weak<Mutex<WasmWebSocket>>,
     ws: WebSocket,
-    // TODO: is it good to use owned vectors? (everywhere in the project)
     msg_queue: Result<VecDeque<Vec<u8>>>,
     // TODO: only one waker? Will this break anything?
     waker: Option<Waker>,
@@ -86,7 +90,7 @@ impl WasmWebSocket {
 }
 
 impl BinaryReceive for WasmWebSocket {
-    fn receive(&self) -> Box<Future<Item = (Arc<Mutex<WasmWebSocket>>, Vec<u8>), Error=Error>> {
+    fn receive(&self) -> Box<Future<Item = (Arc<Mutex<WasmWebSocket>>, Vec<u8>), Error = Error>> {
         Box::new(WasmWebSocketRead {
             ws: self.me.upgrade().unwrap().clone(),
         })
@@ -96,7 +100,7 @@ impl BinaryReceive for WasmWebSocket {
 impl BinarySend for WasmWebSocket {
     // TODO: should the values be owned? Maybe use bytes crate
     // just sending references is not possible because of the way futures work
-    fn send(&self, buffer: Vec<u8>) -> Box<Future<Item = (Arc<Mutex<Self>>), Error=Error>> {
+    fn send(&self, buffer: Vec<u8>) -> Box<Future<Item = (Arc<Mutex<Self>>), Error = Error>> {
         Box::new(WasmWebSocketWrite {
             ws: self.me.upgrade().unwrap().clone(),
             buffer: buffer,

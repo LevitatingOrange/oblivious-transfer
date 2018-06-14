@@ -1,6 +1,6 @@
 //! # Base OT
 //!
-//! Implementations of  1-n oblivious transfer protocols.
+//! Implementations of  1-out-of-n oblivious transfer protocols.
 //! As these rely on expensive public-key-cryptography one is advised
 //! to compose these with extended OT.
 use errors::*;

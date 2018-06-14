@@ -1,4 +1,5 @@
-use async::communication::{BinaryReceive, BinarySend};
+use super::{BaseOTReceiver, BaseOTSender};
+use async::communication::{BinaryReceive, BinarySend, GetConn};
 use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use common::digest::Digest;
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
@@ -13,7 +14,6 @@ use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
 use rand::{CryptoRng, RngCore};
 use std::sync::{Arc, Mutex};
-use super::{BaseOTSender, BaseOTReceiver};
 
 //use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
@@ -61,8 +61,24 @@ where
     t64: EdwardsPoint,
 }
 
-impl<'a, C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
-    ChouOrlandiOTSender<C, D, L, S>
+impl<
+        C: BinarySend + BinaryReceive,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricEncryptor<L>,
+    > GetConn<C> for ChouOrlandiOTSender<C, D, L, S>
+{
+    fn get_conn(self) -> Arc<Mutex<C>> {
+        self.conn.clone()
+    }
+}
+
+impl<
+        C: BinarySend + BinaryReceive,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricEncryptor<L>,
+    > ChouOrlandiOTSender<C, D, L, S>
 {
     pub fn new<R>(
         conn: Arc<Mutex<C>>,
@@ -120,38 +136,58 @@ impl<'a, C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: Ar
     // TODO: should the values be owned?
 }
 
-impl <'a, C: 'a + BinarySend + BinaryReceive, D: 'a + Digest<OutputSize = L> + Clone,  L: 'a + ArrayLength<u8>, S: 'a + SymmetricEncryptor<L>> BaseOTSender<'a> for ChouOrlandiOTSender<C, D, L, S> {
+impl<
+        'a,
+        C: 'a + BinarySend + BinaryReceive,
+        D: 'a + Digest<OutputSize = L> + Clone,
+        L: 'a + ArrayLength<u8>,
+        S: 'a + SymmetricEncryptor<L>,
+    > BaseOTSender<'a> for ChouOrlandiOTSender<C, D, L, S>
+{
     fn send(self, values: Vec<Vec<u8>>) -> Box<Future<Item = Self, Error = Error> + 'a> {
-        Box::new(self.compute_keys(values.len() as u64)
-            .map_err(|e| Error::with_chain(e, "Error computing keys"))
-            .and_then(move |(s, keys)| {
-                let state = (Some(s), keys.into_iter().zip(values).rev().collect());
-                let stream = stream::unfold(
-                    state,
-                    |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
-                        if let Some((key, value)) = kv.pop() {
-                            let mut so = s.take().unwrap();
-                            let conn = so.conn.clone();
-                            let future = so.encryptor.encrypt(&key, value).and_then(move |value| {
-                                let lock = conn.lock().unwrap();
-                                let (ret, state) = if kv.len() == 0 {
-                                    (Some(so), None)
-                                } else {
-                                    (None, Some(so))
-                                };
-                                lock.send(value).map(move |_| (ret, (state, kv)))
-                            });
-                            Some(future)
-                        } else {
-                            None
-                        }
-                    },
-                );
-                stream
-                    .collect()
-                    .map(|mut selfs: Vec<Option<Self>>| selfs.pop().unwrap().unwrap())
-                    .map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
-            }))
+        Box::new(
+            self.compute_keys(values.len() as u64)
+                .map_err(|e| Error::with_chain(e, "Error computing keys"))
+                .and_then(move |(s, keys)| {
+                    // we take `self` and our keys as state and unfold.
+                    // Every iteration we take `self` out of the option, 
+                    // communicate and put it back into the state together with
+                    // our keys (from which we removed the used key). On 
+                    // the last iteration we return `self` instead
+                    // of putting it into the state so we can finally return it for later use.
+                    // this seems quite unecessarily complicated but I have yet to find 
+                    // a better way of getting around ownership issues. When async_await 
+                    // arrives to the rust compiler or the library is more featureful, 
+                    // this could be simplified greatly.
+                    let state = (Some(s), keys.into_iter().zip(values).rev().collect());
+                    let stream = stream::unfold(
+                        state,
+                        |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
+                            if let Some((key, value)) = kv.pop() {
+                                let mut so = s.take().unwrap();
+                                let conn = so.conn.clone();
+                                let future =
+                                    so.encryptor.encrypt(&key, value).and_then(move |value| {
+                                        let lock = conn.lock().unwrap();
+                                        let (ret, state) = if kv.len() == 0 {
+                                            (Some(so), None)
+                                        } else {
+                                            (None, Some(so))
+                                        };
+                                        lock.send(value).map(move |_| (ret, (state, kv)))
+                                    });
+                                Some(future)
+                            } else {
+                                None
+                            }
+                        },
+                    );
+                    stream
+                        .collect()
+                        .map(|mut selfs: Vec<Option<Self>>| selfs.pop().unwrap().unwrap())
+                        .map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
+                }),
+        )
     }
 }
 
@@ -222,16 +258,27 @@ impl<
         })
     }
 }
-impl <'a, C: 'a + BinarySend + BinaryReceive, R: 'a + RngCore + CryptoRng + Clone, D: 'a + Digest<OutputSize = L> + Clone,  L: 'a + ArrayLength<u8>, S: 'a + SymmetricDecryptor<L>> BaseOTReceiver<'a> for ChouOrlandiOTReceiver<C, R, D, L, S> {
+impl<
+        'a,
+        C: 'a + BinarySend + BinaryReceive,
+        R: 'a + RngCore + CryptoRng + Clone,
+        D: 'a + Digest<OutputSize = L> + Clone,
+        L: 'a + ArrayLength<u8>,
+        S: 'a + SymmetricDecryptor<L>,
+    > BaseOTReceiver<'a> for ChouOrlandiOTReceiver<C, R, D, L, S>
+{
     // TODO: don't specify size?
-    fn receive(self, c: usize, n: usize) -> Box<Future<Item = (Vec<u8>, Self), Error = Error> + 'a> {
-        Box::new(self.compute_key(c as u64)
-            .map_err(|e| Error::with_chain(e, "Error computing keys"))
-            .and_then(move |(mut s, key)| {
-                let state = (s.conn.clone(), 0);
-                stream::unfold(
-                    state,
-                    move |(conn, i): (Arc<Mutex<C>>, usize)| {
+    fn receive(
+        self,
+        c: usize,
+        n: usize,
+    ) -> Box<Future<Item = (Vec<u8>, Self), Error = Error> + 'a> {
+        Box::new(
+            self.compute_key(c as u64)
+                .map_err(|e| Error::with_chain(e, "Error computing keys"))
+                .and_then(move |(mut s, key)| {
+                    let state = (s.conn.clone(), 0);
+                    stream::unfold(state, move |(conn, i): (Arc<Mutex<C>>, usize)| {
                         if i < n {
                             let next_conn = conn.clone();
                             let fut = conn
@@ -243,18 +290,18 @@ impl <'a, C: 'a + BinarySend + BinaryReceive, R: 'a + RngCore + CryptoRng + Clon
                         } else {
                             None
                         }
-                    },
-                ).collect()
-                    .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
-                    .and_then(move |mut vals: Vec<Vec<u8>>| {
-                        if c < n {
-                            Ok(vals.remove(c))
-                        } else {
-                            Err("index out of bounds".into())
-                        }
-                    })
-                    .and_then(move |buf| s.decryptor.decrypt(&key, buf).map(|v| (v, s)))
-            }))
+                    }).collect()
+                        .map_err(|e| Error::with_chain(e, "Error receiving encrypted data"))
+                        .and_then(move |mut vals: Vec<Vec<u8>>| {
+                            if c < n {
+                                Ok(vals.remove(c))
+                            } else {
+                                Err("index out of bounds".into())
+                            }
+                        })
+                        .and_then(move |buf| s.decryptor.decrypt(&key, buf).map(|v| (v, s)))
+                }),
+        )
     }
 }
 

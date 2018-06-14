@@ -27,7 +27,6 @@
 #![feature(iterator_flatten)]
 #![feature(int_to_from_bytes)]
 #![feature(iterator_repeat_with)]
-
 // TODO: remove this when error_chain crate is fixed
 #![allow(renamed_and_removed_lints)]
 
