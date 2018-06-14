@@ -1,4 +1,3 @@
-use async::communication::websockets::*;
 use async::communication::{BinaryReceive, BinarySend};
 use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use common::digest::Digest;
@@ -14,10 +13,10 @@ use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
 use rand::{CryptoRng, RngCore};
 use std::sync::{Arc, Mutex};
+use super::{BaseOTSender, BaseOTReceiver};
 
 //use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
-// TODO use traits
 fn send_point<C: BinarySend>(
     conn: Arc<Mutex<C>>,
     point: EdwardsPoint,
@@ -62,7 +61,7 @@ where
     t64: EdwardsPoint,
 }
 
-impl<C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
+impl<'a, C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
     ChouOrlandiOTSender<C, D, L, S>
 {
     pub fn new<R>(
@@ -119,8 +118,11 @@ impl<C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayL
     }
 
     // TODO: should the values be owned?
-    pub fn send(self, values: Vec<Vec<u8>>) -> impl Future<Item = Self, Error = Error> {
-        self.compute_keys(values.len() as u64)
+}
+
+impl <'a, C: 'a + BinarySend + BinaryReceive, D: 'a + Digest<OutputSize = L> + Clone,  L: 'a + ArrayLength<u8>, S: 'a + SymmetricEncryptor<L>> BaseOTSender<'a> for ChouOrlandiOTSender<C, D, L, S> {
+    fn send(self, values: Vec<Vec<u8>>) -> Box<Future<Item = Self, Error = Error> + 'a> {
+        Box::new(self.compute_keys(values.len() as u64)
             .map_err(|e| Error::with_chain(e, "Error computing keys"))
             .and_then(move |(s, keys)| {
                 let state = (Some(s), keys.into_iter().zip(values).rev().collect());
@@ -149,7 +151,7 @@ impl<C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayL
                     .collect()
                     .map(|mut selfs: Vec<Option<Self>>| selfs.pop().unwrap().unwrap())
                     .map_err(|e| Error::with_chain(e, "Error sending encrypted data"))
-            })
+            }))
     }
 }
 
@@ -219,10 +221,11 @@ impl<
             Ok((self, hasher.result()))
         })
     }
-
+}
+impl <'a, C: 'a + BinarySend + BinaryReceive, R: 'a + RngCore + CryptoRng + Clone, D: 'a + Digest<OutputSize = L> + Clone,  L: 'a + ArrayLength<u8>, S: 'a + SymmetricDecryptor<L>> BaseOTReceiver<'a> for ChouOrlandiOTReceiver<C, R, D, L, S> {
     // TODO: don't specify size?
-    pub fn receive(self, c: usize, n: usize) -> impl Future<Item = (Self, Vec<u8>), Error = Error> {
-        self.compute_key(c as u64)
+    fn receive(self, c: usize, n: usize) -> Box<Future<Item = (Vec<u8>, Self), Error = Error> + 'a> {
+        Box::new(self.compute_key(c as u64)
             .map_err(|e| Error::with_chain(e, "Error computing keys"))
             .and_then(move |(mut s, key)| {
                 let state = (s.conn.clone(), 0);
@@ -250,8 +253,8 @@ impl<
                             Err("index out of bounds".into())
                         }
                     })
-                    .and_then(move |buf| s.decryptor.decrypt(&key, buf).map(|v| (s, v)))
-            })
+                    .and_then(move |buf| s.decryptor.decrypt(&key, buf).map(|v| (v, s)))
+            }))
     }
 }
 

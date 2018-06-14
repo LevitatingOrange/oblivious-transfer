@@ -24,7 +24,8 @@ use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
 use stdweb::web::{document, Element, HtmlElement};
 use stdweb::PromiseFuture;
-use ot::async::communication::{BinaryReceive, BinarySend};
+use ot::async::communication::{BinarySend};
+use ot::async::base_ot::{BaseOTSender, BaseOTReceiver};
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()
@@ -69,7 +70,7 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
             ChouOrlandiOTReceiver::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
         })
         .and_then(move |s| s.receive(c, n))
-        .and_then(|(_, result)| {
+        .and_then(|(result, _)| {
             String::from_utf8(result)
                 .map_err(|e| Error::with_chain(e, "Error while parsing String"))
         })
@@ -100,7 +101,7 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
         .unwrap();
     let mut seed_arr: [u8; 32] = Default::default();
     seed_arr.copy_from_slice(&seed.to_vec());
-    let mut rng = ChaChaRng::from_seed(seed_arr);
+    let rng = ChaChaRng::from_seed(seed_arr);
     let future = lock
         .send("receive".as_bytes().to_owned())
         .and_then(move |_| {
