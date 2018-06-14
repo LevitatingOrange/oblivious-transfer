@@ -8,6 +8,7 @@ use stdweb::traits::*;
 use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
+use super::{BinarySend, BinaryReceive};
 
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 
@@ -82,19 +83,24 @@ impl WasmWebSocket {
         let ws = Self::new(socket);
         WasmWebSocketOpen { ws: ws }
     }
+}
 
-    pub fn read(&self) -> WasmWebSocketRead {
-        WasmWebSocketRead {
+impl BinaryReceive for WasmWebSocket {
+    fn receive(&self) -> Box<Future<Item = (Arc<Mutex<WasmWebSocket>>, Vec<u8>), Error=Error>> {
+        Box::new(WasmWebSocketRead {
             ws: self.me.upgrade().unwrap().clone(),
-        }
+        })
     }
+}
+
+impl BinarySend for WasmWebSocket {
     // TODO: should the values be owned? Maybe use bytes crate
     // just sending references is not possible because of the way futures work
-    pub fn write(&self, buffer: Vec<u8>) -> WasmWebSocketWrite {
-        WasmWebSocketWrite {
+    fn send(&self, buffer: Vec<u8>) -> Box<Future<Item = (Arc<Mutex<Self>>), Error=Error>> {
+        Box::new(WasmWebSocketWrite {
             ws: self.me.upgrade().unwrap().clone(),
             buffer: buffer,
-        }
+        })
     }
 }
 

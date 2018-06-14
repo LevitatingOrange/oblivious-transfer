@@ -1,4 +1,5 @@
 use async::communication::websockets::*;
+use async::communication::{BinaryReceive, BinarySend};
 use async::crypto::{SymmetricDecryptor, SymmetricEncryptor};
 use common::digest::Digest;
 use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE, EIGHT_TORSION};
@@ -17,23 +18,23 @@ use std::sync::{Arc, Mutex};
 //use stdweb::{__internal_console_unsafe, __js_raw_asm, _js_impl, console, js};
 
 // TODO use traits
-fn send_point(
-    conn: Arc<Mutex<WasmWebSocket>>,
+fn send_point<C: BinarySend>(
+    conn: Arc<Mutex<C>>,
     point: EdwardsPoint,
 ) -> impl Future<Item = (), Error = Error> {
     conn.lock()
         .unwrap()
-        .write(point.compress().as_bytes().to_vec())
+        .send(point.compress().as_bytes().to_vec())
         .map(|_| ())
         .map_err(|e| Error::with_chain(e, "Error while sending point"))
 }
 
-fn receive_point(
-    conn: Arc<Mutex<WasmWebSocket>>,
+fn receive_point<C: BinaryReceive>(
+    conn: Arc<Mutex<C>>,
 ) -> impl Future<Item = EdwardsPoint, Error = Error> {
     conn.lock()
         .unwrap()
-        .read()
+        .receive()
         .map_err(move |e| Error::with_chain(e, "Error while receiving point"))
         .and_then(|(_, buf)| {
             if buf.len() != 32 {
@@ -47,32 +48,33 @@ fn receive_point(
 }
 
 #[derive(Clone)]
-pub struct ChouOrlandiOTSender<D, L, S>
+pub struct ChouOrlandiOTSender<C, D, L, S>
 where
+    C: BinarySend + BinaryReceive,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
     S: SymmetricEncryptor<L>,
 {
-    conn: Arc<Mutex<WasmWebSocket>>,
+    conn: Arc<Mutex<C>>,
     hasher: D,
     encryptor: S,
     y: Scalar,
     t64: EdwardsPoint,
 }
 
-impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
-    ChouOrlandiOTSender<D, L, S>
+impl<C: BinarySend + BinaryReceive, D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncryptor<L>>
+    ChouOrlandiOTSender<C, D, L, S>
 {
     pub fn new<R>(
-        conn: Arc<Mutex<WasmWebSocket>>,
+        conn: Arc<Mutex<C>>,
         mut hasher: D,
         encryptor: S,
-        rng: &mut R,
+        mut rng: R,
     ) -> impl Future<Item = Self, Error = Error>
     where
         R: RngCore + CryptoRng,
     {
-        let y = Scalar::random(rng);
+        let y = Scalar::random(&mut rng);
         let mut s = &y * &ED25519_BASEPOINT_TABLE;
 
         // we dont send s directly, instead we add a point from the eight torsion subgroup.
@@ -135,7 +137,7 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
                                 } else {
                                     (None, Some(so))
                                 };
-                                lock.write(value).map(move |_| (ret, (state, kv)))
+                                lock.send(value).map(move |_| (ret, (state, kv)))
                             });
                             Some(future)
                         } else {
@@ -152,14 +154,15 @@ impl<D: Digest<OutputSize = L> + Clone, L: ArrayLength<u8>, S: SymmetricEncrypto
 }
 
 #[derive(Clone)]
-pub struct ChouOrlandiOTReceiver<R, D, L, S>
+pub struct ChouOrlandiOTReceiver<C, R, D, L, S>
 where
+    C: BinarySend + BinaryReceive,
     R: RngCore + CryptoRng,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
     S: SymmetricDecryptor<L>,
 {
-    conn: Arc<Mutex<WasmWebSocket>>,
+    conn: Arc<Mutex<C>>,
     hasher: D,
     decryptor: S,
     rng: R,
@@ -167,14 +170,15 @@ where
 }
 
 impl<
+        C: BinarySend + BinaryReceive,
         R: RngCore + CryptoRng,
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricDecryptor<L>,
-    > ChouOrlandiOTReceiver<R, D, L, S>
+    > ChouOrlandiOTReceiver<C, R, D, L, S>
 {
     pub fn new(
-        conn: Arc<Mutex<WasmWebSocket>>,
+        conn: Arc<Mutex<C>>,
         mut hasher: D,
         decryptor: S,
         rng: R,
@@ -224,13 +228,13 @@ impl<
                 let state = (s.conn.clone(), 0);
                 stream::unfold(
                     state,
-                    move |(conn, i): (Arc<Mutex<WasmWebSocket>>, usize)| {
+                    move |(conn, i): (Arc<Mutex<C>>, usize)| {
                         if i < n {
                             let next_conn = conn.clone();
                             let fut = conn
                                 .lock()
                                 .unwrap()
-                                .read()
+                                .receive()
                                 .map(move |(_, buf)| (buf, (next_conn, i + 1)));
                             Some(fut)
                         } else {

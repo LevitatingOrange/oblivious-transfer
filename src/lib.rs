@@ -28,7 +28,8 @@
 #![feature(int_to_from_bytes)]
 #![feature(iterator_repeat_with)]
 
-//#![warn(missing_docs)]
+// TODO: remove this when error_chain crate is fixed
+#![allow(renamed_and_removed_lints)]
 
 // #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 // extern crate tokio;

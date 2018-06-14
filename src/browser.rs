@@ -24,6 +24,7 @@ use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
 use stdweb::web::{document, Element, HtmlElement};
 use stdweb::PromiseFuture;
+use ot::async::communication::{BinaryReceive, BinarySend};
 
 fn select(sel: &str) -> Element {
     document().query_selector(sel).unwrap().unwrap()
@@ -63,7 +64,7 @@ fn receive(ws: Arc<Mutex<WasmWebSocket>>, c: usize, n: usize) {
     seed_arr.copy_from_slice(&seed.to_vec());
     let rng = ChaChaRng::from_seed(seed_arr);
     let future = lock
-        .write("send".as_bytes().to_owned())
+        .send("send".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTReceiver::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
         })
@@ -101,13 +102,13 @@ fn send(ws: Arc<Mutex<WasmWebSocket>>, values: Vec<Vec<u8>>) {
     seed_arr.copy_from_slice(&seed.to_vec());
     let mut rng = ChaChaRng::from_seed(seed_arr);
     let future = lock
-        .write("receive".as_bytes().to_owned())
+        .send("receive".as_bytes().to_owned())
         .and_then(move |_| {
             ChouOrlandiOTSender::new(
                 ws,
                 SHA3_256::default(),
                 AesCryptoProvider::default(),
-                &mut rng,
+                rng,
             )
         })
         .and_then(move |s| s.send(values))
