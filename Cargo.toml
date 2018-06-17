@@ -12,18 +12,6 @@ crate-type = ["lib"]
 name = "ot"
 path = "src/lib.rs"
 
-[[bin]]
-name = "ot_browser"
-path = "src/browser.rs"
-
-[[bin]]
-name = "ot_server"
-path = "src/server.rs"
-
-# [[bin]]
-# name = "ot_ext"
-# path = "src/extensions.rs"
-
 #[target.'cfg(all(target_arch="wasm32", target_os="unknown"))'.dependencies]
 #wasm-bindgen = "0.2"
 #stdweb = {version="0.4.4"}
