@@ -213,6 +213,20 @@ impl<
         D: Digest<OutputSize = L> + Clone,
         L: ArrayLength<u8>,
         S: SymmetricDecryptor<L>,
+    > GetConn<C> for ChouOrlandiOTReceiver<C, R, D, L, S>
+{
+    fn get_conn(self) -> Arc<Mutex<C>> {
+        Arc::clone(&self.conn)
+    }
+}
+
+
+impl<
+        C: BinarySend + BinaryReceive,
+        R: RngCore + CryptoRng,
+        D: Digest<OutputSize = L> + Clone,
+        L: ArrayLength<u8>,
+        S: SymmetricDecryptor<L>,
     > ChouOrlandiOTReceiver<C, R, D, L, S>
 {
     pub fn new(

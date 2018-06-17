@@ -5,6 +5,7 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 // simple macro to make closures and cloning less tedious
 // as seen on https://github.com/rust-webplatform/rust-todomvc/blob/master/src/main.rs#L142
+#[macro_export]
 macro_rules! enclose {
     ( ($( $x:ident ),*) $y:expr ) => {
         {

@@ -20,6 +20,14 @@ where
     initial_pairs: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
+impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> GetConn<T>
+    for IKNPExtendedOTReceiver<T, A>
+{
+    fn get_conn(self) -> T {
+        return self.conn;
+    }
+}
+
 /// security parameter: number of bytes to use
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTReceiver<T, A> {
     pub fn new<S, R>(
@@ -55,7 +63,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTRe
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiver
     for IKNPExtendedOTReceiver<T, A>
 {
-    fn receive(mut self, choice_bits: BitVec) -> Result<Vec<Vec<u8>>> {
+    fn receive(&mut self, choice_bits: &BitVec) -> Result<Vec<Vec<u8>>> {
         let output_size = choice_bits.len();
         let l = self.initial_pairs.len();
         //let mut result = Vec::with_capacity(choice_bits);
@@ -73,7 +81,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiv
                 choice_bits.len(),
                 "internal error, lengths don't match."
             );
-            let u: BitVec = izip!(t, gk, &choice_bits)
+            let u: BitVec = izip!(t, gk, choice_bits)
                 .map(|(t, k, r)| t ^ k ^ r)
                 .collect();
             self.conn.send(&u.to_bytes())?;
@@ -121,6 +129,14 @@ where
     random_choices: BitVec,
 }
 
+impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> GetConn<T>
+    for IKNPExtendedOTSender<T, A>
+{
+    fn get_conn(self) -> T {
+        return self.conn;
+    }
+}
+
 /// security parameter: number of bytes to use
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTSender<T, A> {
     pub fn new<S, R>(
@@ -153,7 +169,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTSe
 impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTSender
     for IKNPExtendedOTSender<T, A>
 {
-    fn send(mut self, values: Vec<(&[u8], &[u8])>) -> Result<()> {
+    fn send(&mut self, values: Vec<(&[u8], &[u8])>) -> Result<()> {
         let output_size = values.len();
         let l = self.initial.len();
         let security_parameter = self.initial.len();
@@ -263,7 +279,7 @@ mod tests {
             println!("IKNP receiver creation took {:?}", now.elapsed());
             now = Instant::now();
             let values: Vec<String> = ot_ext
-                .receive(choices2)
+                .receive(&choices2)
                 .unwrap()
                 .into_iter()
                 .map(|v| String::from_utf8(v).unwrap())

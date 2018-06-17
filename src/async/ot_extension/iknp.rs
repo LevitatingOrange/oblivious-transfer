@@ -20,6 +20,14 @@ where
     initial_pairs: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
+impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> GetConn<T>
+    for IKNPExtendedOTReceiver<T, A>
+{
+    fn get_conn(self) -> Arc<Mutex<T>> {
+        return self.conn;
+    }
+}
+
 /// security parameter: number of bytes to use
 impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
     IKNPExtendedOTReceiver<T, A>
@@ -165,6 +173,14 @@ where
     random_choices: BitVec,
 }
 
+impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> GetConn<T>
+    for IKNPExtendedOTSender<T, A>
+{
+    fn get_conn(self) -> Arc<Mutex<T>> {
+        return self.conn;
+    }
+}
+
 /// security parameter: number of bytes to use
 impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
     IKNPExtendedOTSender<T, A>
@@ -174,7 +190,6 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
         base_ot_receiver: S,
         mut rng: R,
         security_param: usize,
-        stat_security_param: usize,
     ) -> Box<Future<Item = Self, Error = Error> + 'a>
     where
         S: 'a + BaseOTReceiver<'a> + GetConn<T>,
@@ -182,7 +197,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
     {
         // To simplify this protocol both security parameters are specified
         // in bytes and as such have to be multiplied by 8 for certain parts of the protocol.
-        let l = (security_param * 8) + (stat_security_param * 8);
+        let l = security_param * 8;
         // we generate random choices (0 or 1) and use them to receive
         // `l` seeds (of size `security_param`) from the receiver with the base-OT primitive.
         let state = (Some(base_ot_receiver), 0);
@@ -225,10 +240,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
 impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> ExtendedOTSender<'a>
     for IKNPExtendedOTSender<T, A>
 {
-    fn send(
-        self,
-        values: Vec<(Vec<u8>, Vec<u8>)>,
-    ) -> Box<Future<Item = Self, Error = Error> + 'a> {
+    fn send(self, values: Vec<(Vec<u8>, Vec<u8>)>) -> Box<Future<Item = Self, Error = Error> + 'a> {
         let output_size = values.len();
         let l = self.initial.len();
         let security_parameter = self.initial.len();
@@ -245,60 +257,62 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> Ex
                 lock.receive().map(move |(_, s)| bv_truncate(&s, output_size))
             }})
             .collect()
-            .and_then(enclose!{ (conn, arbitrary_hasher, random_choices) move |us: Vec<BitVec>| {
-                assert_eq!(
-                    us.len(),
-                    initial.len(),
-                    "internal error, lengths don't match."
-                );
-                assert_eq!(
-                    us.len(),
-                    random_choices.len(),
-                    "internal error, lengths don't match."
-                );
-                let q_mat: Vec<BitVec> = izip!(initial.iter(), &us, random_choices.iter())
-                    .map(|(k, u, s)| {
-                        let gk = trunc_hash(arbitrary_hasher.clone(), output_size, k);
-                        u.iter()
-                            .zip(gk)
-                            .map(|(u, k)| (((s as u8) * (u as u8)) ^ (k as u8)) == 1)
-                            .collect()
-                    })
-                    .collect();
-                let fut = stream::iter_ok(0..security_parameter)
-                    .and_then(enclose!{ (conn, arbitrary_hasher, random_choices) move |i| {
-                        let lock = conn.lock().unwrap();
-                        let n = values[i].0.len();
-                        assert_eq!(n, values[i].1.len(), "String pairs do not have same size");
-                        let mut qt = BitVec::with_capacity(l);
-                        for j in 0..l {
-                            qt.push(q_mat[j][i]);
-                        }
-                        let mut hasher = arbitrary_hasher.clone();
-                        hasher.input(&(i as u64).to_bytes());
-                        let mut hasher2 = hasher.clone();
-                        // TODO make this nicer
-                        hasher.input(&qt.to_bytes());
-                        let hq = hasher.result(n);
-                        let y0: Vec<u8> = values[i].0.iter().zip(hq).map(|(x, q)| x ^ q).collect();
-                        let q2: Vec<u8> = qt
-                            .to_bytes()
-                            .iter()
-                            .zip(random_choices.to_bytes())
-                            .map(|(q, s)| q ^ s)
-                            .collect();
-                        hasher2.input(&q2);
-                        let shq = hasher2.result(n);
-                        let y1: Vec<u8> = values[i].1.iter().zip(shq).map(|(x, q)| x ^ q).collect();
-                        lock.send(y0).and_then(|s| {
-                            let lock = s.lock().unwrap();
-                            lock.send(y1)
+            .and_then(
+                enclose!{ (conn, arbitrary_hasher, random_choices) move |us: Vec<BitVec>| {
+                    assert_eq!(
+                        us.len(),
+                        initial.len(),
+                        "internal error, lengths don't match."
+                    );
+                    assert_eq!(
+                        us.len(),
+                        random_choices.len(),
+                        "internal error, lengths don't match."
+                    );
+                    let q_mat: Vec<BitVec> = izip!(initial.iter(), &us, random_choices.iter())
+                        .map(|(k, u, s)| {
+                            let gk = trunc_hash(arbitrary_hasher.clone(), output_size, k);
+                            u.iter()
+                                .zip(gk)
+                                .map(|(u, k)| (((s as u8) * (u as u8)) ^ (k as u8)) == 1)
+                                .collect()
                         })
-                    }})
-                    .collect()
-                    .map(move |_: Vec<Arc<Mutex<T>>>| self);
-                fut
-            }});
+                        .collect();
+                    let fut = stream::iter_ok(0..output_size)
+                        .and_then(enclose!{ (conn, arbitrary_hasher, random_choices) move |i| {
+                            let lock = conn.lock().unwrap();
+                            let n = values[i].0.len();
+                            assert_eq!(n, values[i].1.len(), "String pairs do not have same size");
+                            let mut qt = BitVec::with_capacity(l);
+                            for j in 0..l {
+                                qt.push(q_mat[j][i]);
+                            }
+                            let mut hasher = arbitrary_hasher.clone();
+                            hasher.input(&(i as u64).to_bytes());
+                            let mut hasher2 = hasher.clone();
+                            // TODO make this nicer
+                            hasher.input(&qt.to_bytes());
+                            let hq = hasher.result(n);
+                            let y0: Vec<u8> = values[i].0.iter().zip(hq).map(|(x, q)| x ^ q).collect();
+                            let q2: Vec<u8> = qt
+                                .to_bytes()
+                                .iter()
+                                .zip(random_choices.to_bytes())
+                                .map(|(q, s)| q ^ s)
+                                .collect();
+                            hasher2.input(&q2);
+                            let shq = hasher2.result(n);
+                            let y1: Vec<u8> = values[i].1.iter().zip(shq).map(|(x, q)| x ^ q).collect();
+                            lock.send(y0).and_then(|s| {
+                                let lock = s.lock().unwrap();
+                                lock.send(y1)
+                            })
+                        }})
+                        .collect()
+                        .map(move |_: Vec<Arc<Mutex<T>>>| self);
+                    fut
+                }},
+            );
         Box::new(stream)
     }
 }
