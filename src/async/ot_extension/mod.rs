@@ -21,5 +21,5 @@ pub trait ExtendedOTReceiver<'a> {
     fn receive(
         self,
         choice_bits: BitVec,
-    ) -> Box<Future<Item = (Vec<Vec<u8>>), Error = Error> + 'a>;
+    ) -> Box<Future<Item = (Vec<Vec<u8>>, Self), Error = Error> + 'a>;
 }

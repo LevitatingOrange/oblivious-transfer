@@ -6,11 +6,10 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, Weak};
 use std::vec::Vec;
 use stdweb::traits::*;
+use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
 use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
-use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
-
 
 /// This is a wrapper around stdweb's websockets so we can use them
 /// with futures (websockets in the browser are callback-based and do not implement
@@ -38,41 +37,44 @@ impl WasmWebSocket {
             let mut me = s.lock().unwrap();
             me.me = Arc::downgrade(&s);
 
-            me.ws.add_event_listener(enclose! { (s) move |_: SocketOpenEvent| {
-                if let Ok(ref mut me) = s.lock() {
-                    me.open = true;
-                    //me.wakers.iter().for_each(|waker| waker.wake());
-                    if let Some(ref waker) = me.waker {
-                        waker.wake();
-                    }
-                }
-            }});
-            me.ws.add_event_listener(enclose! { (s) move |event: SocketMessageEvent| {
-                let data = event.data();
-                if let Ok(ref mut me) = s.lock() {
-                    if let Some(arr) = data.into_array_buffer() {
-                        let buf: TypedArray<u8> = TypedArray::from(arr);
-                        if let Ok(ref mut msg_queue) = me.msg_queue {
-                            msg_queue.push_back(buf.to_vec());
+            me.ws
+                .add_event_listener(enclose! { (s) move |_: SocketOpenEvent| {
+                    if let Ok(ref mut me) = s.lock() {
+                        me.open = true;
+                        //me.wakers.iter().for_each(|waker| waker.wake());
+                        if let Some(ref waker) = me.waker {
+                            waker.wake();
                         }
-                    //me.wakers.iter().for_each(|waker| waker.wake());
-                    } else {
-                        me.msg_queue = Err("Did not receive binary data!".into());
                     }
-                    if let Some(ref waker) = me.waker {
-                        waker.wake();
+                }});
+            me.ws
+                .add_event_listener(enclose! { (s) move |event: SocketMessageEvent| {
+                    let data = event.data();
+                    if let Ok(ref mut me) = s.lock() {
+                        if let Some(arr) = data.into_array_buffer() {
+                            let buf: TypedArray<u8> = TypedArray::from(arr);
+                            if let Ok(ref mut msg_queue) = me.msg_queue {
+                                msg_queue.push_back(buf.to_vec());
+                            }
+                        //me.wakers.iter().for_each(|waker| waker.wake());
+                        } else {
+                            me.msg_queue = Err("Did not receive binary data!".into());
+                        }
+                        if let Some(ref waker) = me.waker {
+                            waker.wake();
+                        }
                     }
-                }
-            }});
-            me.ws.add_event_listener(enclose! { (s) move |event: SocketCloseEvent| {
-                if let Ok(ref mut me) = s.lock() {
-                    me.msg_queue = Err(event.reason().into());
-                    //me.wakers.iter().for_each(|waker| waker.wake());
-                    if let Some(ref waker) = me.waker {
-                        waker.wake();
+                }});
+            me.ws
+                .add_event_listener(enclose! { (s) move |event: SocketCloseEvent| {
+                    if let Ok(ref mut me) = s.lock() {
+                        me.msg_queue = Err(event.reason().into());
+                        //me.wakers.iter().for_each(|waker| waker.wake());
+                        if let Some(ref waker) = me.waker {
+                            waker.wake();
+                        }
                     }
-                }
-            }});
+                }});
         }
         s
     }
