@@ -69,7 +69,7 @@ impl<
     > GetConn<C> for ChouOrlandiOTSender<C, D, L, S>
 {
     fn get_conn(self) -> Arc<Mutex<C>> {
-        self.conn.clone()
+        Arc::clone(&self.conn)
     }
 }
 
@@ -95,7 +95,7 @@ impl<
         // we dont send s directly, instead we add a point from the eight torsion subgroup.
         // This enables the receiver to verify that s is in the subgroup of the twisted edwards curve
         // 25519 of Bernstein et al. [TODO: CITE]
-        send_point(conn.clone(), s + EIGHT_TORSION[1]).and_then(move |_| {
+        send_point(Arc::clone(&conn), s + EIGHT_TORSION[1]).and_then(move |_| {
             // see ChouOrlandiOTReceiver::new for discussion of why to multiply by the cofactor (i.e. 8)
             s = s.mul_by_cofactor();
             hasher.input(s.compress().as_bytes());
@@ -113,7 +113,7 @@ impl<
         self,
         n: u64,
     ) -> impl Future<Item = (Self, Vec<GenericArray<u8, L>>), Error = Error> {
-        receive_point(self.conn.clone()).and_then(move |mut r| {
+        receive_point(Arc::clone(&self.conn)).and_then(move |mut r| {
             r = r.mul_by_cofactor();
             // seed the hash function with r in its compressed form
             let mut hasher = self.hasher.clone();
@@ -150,14 +150,14 @@ impl<
                 .map_err(|e| Error::with_chain(e, "Error computing keys"))
                 .and_then(move |(s, keys)| {
                     // we take `self` and our keys as state and unfold.
-                    // Every iteration we take `self` out of the option, 
+                    // Every iteration we take `self` out of the option,
                     // communicate and put it back into the state together with
-                    // our keys (from which we removed the used key). On 
+                    // our keys (from which we removed the used key). On
                     // the last iteration we return `self` instead
                     // of putting it into the state so we can finally return it for later use.
-                    // this seems quite unecessarily complicated but I have yet to find 
-                    // a better way of getting around ownership issues. When async_await 
-                    // arrives to the rust compiler or the library is more featureful, 
+                    // this seems quite unecessarily complicated but I have yet to find
+                    // a better way of getting around ownership issues. When async_await
+                    // arrives to the rust compiler or the library is more featureful,
                     // this could be simplified greatly.
                     let state = (Some(s), keys.into_iter().zip(values).rev().collect());
                     let stream = stream::unfold(
@@ -165,7 +165,7 @@ impl<
                         |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
                             if let Some((key, value)) = kv.pop() {
                                 let mut so = s.take().unwrap();
-                                let conn = so.conn.clone();
+                                let conn = Arc::clone(&so.conn);
                                 let future =
                                     so.encryptor.encrypt(&key, value).and_then(move |value| {
                                         let lock = conn.lock().unwrap();
@@ -221,7 +221,7 @@ impl<
         decryptor: S,
         rng: R,
     ) -> impl Future<Item = Self, Error = Error> {
-        receive_point(conn.clone()).and_then(move |mut s| {
+        receive_point(Arc::clone(&conn)).and_then(move |mut s| {
             // as we've added a point from the eight torsion subgroup to s before sending,
             // by multiplying with the cofactor (i.e. 8, i.e. the order of the eight torsion subgroup)
             // we get [8]s and can be sure that the received value is indeed in the subgroup
@@ -247,7 +247,7 @@ impl<
         let x = Scalar::random(&mut self.rng);
         let r = Scalar::from_u64(c) * self.s8 + (&x * &ED25519_BASEPOINT_TABLE).mul_by_cofactor();
 
-        send_point(self.conn.clone(), r + EIGHT_TORSION[1]).and_then(move |_| {
+        send_point(Arc::clone(&self.conn), r + EIGHT_TORSION[1]).and_then(move |_| {
             // seed the hash function with s and r in it's compressed form
             hasher.input(r.mul_by_cofactor().compress().as_bytes());
             // hash p = 64xS
@@ -277,10 +277,10 @@ impl<
             self.compute_key(c as u64)
                 .map_err(|e| Error::with_chain(e, "Error computing keys"))
                 .and_then(move |(mut s, key)| {
-                    let state = (s.conn.clone(), 0);
+                    let state = (Arc::clone(&s.conn), 0);
                     stream::unfold(state, move |(conn, i): (Arc<Mutex<C>>, usize)| {
                         if i < n {
-                            let next_conn = conn.clone();
+                            let next_conn = Arc::clone(&conn);
                             let fut = conn
                                 .lock()
                                 .unwrap()

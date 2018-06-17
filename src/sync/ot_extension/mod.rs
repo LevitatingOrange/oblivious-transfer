@@ -2,7 +2,7 @@
 //!
 //! With a set of standard OT transfers one can transfer much more data
 //! without using expensive public-key-cryptography.
-//! While BaseOT implements 1-out-of-n OT, this implements n 1-out-of-2 OTs 
+//! While BaseOT implements 1-out-of-n OT, this implements n 1-out-of-2 OTs
 //! because that's how most OT extension protocols work.
 //! It is trivial to implement 1-out-of-n OT with n 1-out-of-2 OTs.
 use bit_vec::BitVec;

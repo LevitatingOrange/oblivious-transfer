@@ -1,5 +1,3 @@
-
-
 use super::{BinaryReceive, BinarySend};
 use errors::*;
 use futures::prelude::task::{Context, Waker};
@@ -11,8 +9,8 @@ use stdweb::traits::*;
 use stdweb::web::SocketBinaryType;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
-
 use stdweb::web::event::{SocketCloseEvent, SocketMessageEvent, SocketOpenEvent};
+
 
 /// This is a wrapper around stdweb's websockets so we can use them
 /// with futures (websockets in the browser are callback-based and do not implement
@@ -40,21 +38,18 @@ impl WasmWebSocket {
             let mut me = s.lock().unwrap();
             me.me = Arc::downgrade(&s);
 
-            let handle0 = s.clone();
-            let handle1 = s.clone();
-            let handle2 = s.clone();
-            me.ws.add_event_listener(move |_: SocketOpenEvent| {
-                if let Ok(ref mut me) = handle0.lock() {
+            me.ws.add_event_listener(enclose! { (s) move |_: SocketOpenEvent| {
+                if let Ok(ref mut me) = s.lock() {
                     me.open = true;
                     //me.wakers.iter().for_each(|waker| waker.wake());
                     if let Some(ref waker) = me.waker {
                         waker.wake();
                     }
                 }
-            });
-            me.ws.add_event_listener(move |event: SocketMessageEvent| {
+            }});
+            me.ws.add_event_listener(enclose! { (s) move |event: SocketMessageEvent| {
                 let data = event.data();
-                if let Ok(ref mut me) = handle1.lock() {
+                if let Ok(ref mut me) = s.lock() {
                     if let Some(arr) = data.into_array_buffer() {
                         let buf: TypedArray<u8> = TypedArray::from(arr);
                         if let Ok(ref mut msg_queue) = me.msg_queue {
@@ -68,16 +63,16 @@ impl WasmWebSocket {
                         waker.wake();
                     }
                 }
-            });
-            me.ws.add_event_listener(move |event: SocketCloseEvent| {
-                if let Ok(ref mut me) = handle2.lock() {
+            }});
+            me.ws.add_event_listener(enclose! { (s) move |event: SocketCloseEvent| {
+                if let Ok(ref mut me) = s.lock() {
                     me.msg_queue = Err(event.reason().into());
                     //me.wakers.iter().for_each(|waker| waker.wake());
                     if let Some(ref waker) = me.waker {
                         waker.wake();
                     }
                 }
-            });
+            }});
         }
         s
     }

@@ -92,8 +92,10 @@ pub mod errors {
 // TODO channel should be authenticated, but not necessarily confidential, use TLS?
 // TODO transmit length, probably with aes-gcm ad (without any crypto value, would be convinient)
 // TODO for now, async only works on the client
+#[macro_use]
+pub mod common;
+
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod async;
-pub mod common;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod sync;

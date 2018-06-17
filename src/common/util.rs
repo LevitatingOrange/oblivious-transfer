@@ -3,6 +3,17 @@ use bit_vec::BitVec;
 use generic_array::GenericArray;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
+// simple macro to make closures and cloning less tedious
+// as seen on https://github.com/rust-webplatform/rust-todomvc/blob/master/src/main.rs#L142
+macro_rules! enclose {
+    ( ($( $x:ident ),*) $y:expr ) => {
+        {
+            $(let $x = $x.clone();)*
+            $y
+        }
+    };
+}
+
 pub fn bv_truncate(bytes: &[u8], length: usize) -> BitVec {
     let mut bv = BitVec::from_bytes(bytes);
     bv.truncate(length);
