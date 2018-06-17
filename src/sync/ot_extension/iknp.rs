@@ -273,12 +273,12 @@ mod tests {
             ).unwrap();
             println!("Chou ot sender creation took {:?}", now.elapsed());
             now = Instant::now();
-            let ot_ext =
+            let mut ot_ext =
                 IKNPExtendedOTReceiver::new(SHA3_256::default(), ot, rng.clone(), security_param)
                     .unwrap();
             println!("IKNP receiver creation took {:?}", now.elapsed());
             now = Instant::now();
-            let values: Vec<String> = ot_ext
+            let mut values: Vec<String> = ot_ext
                 .receive(&choices2)
                 .unwrap()
                 .into_iter()
@@ -300,7 +300,7 @@ mod tests {
             ).unwrap();
             println!("chou ot receiver creation took {:?}", now.elapsed());
             now = Instant::now();
-            let ot_ext =
+            let mut ot_ext =
                 IKNPExtendedOTSender::new(SHA3_256::default(), ot, rng.clone(), security_param)
                     .unwrap();
             println!("IKNP sender creation took {:?}", now.elapsed());
