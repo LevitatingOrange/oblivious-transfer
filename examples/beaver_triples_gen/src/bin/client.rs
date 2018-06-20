@@ -27,6 +27,7 @@ use stdweb::unstable::TryInto;
 use stdweb::web::TypedArray;
 use stdweb::web::WebSocket;
 use stdweb::PromiseFuture;
+use stdweb::web::Date;
 
 use beaver_triples_gen::*;
 
@@ -62,25 +63,25 @@ where
         .collect();
     let bytes = b.to_bytes();
     let choices: BitVec = BitVec::from_bytes(&bytes).into_iter().rev().collect();
-
-    let s = format!("Length: {}", choices.len());
-    console!(log, s);
     let rng = create_rng();
     console!(log, "Creating BaseOT sender...");
+    let prev = Date::now();
     ChouOrlandiOTSender::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
-        .and_then(|base_ot| {
-            console!(log, "BaseOT sender created.");
+        .and_then(move |base_ot| {
+            console!(log, "BaseOT sender creation took ", Date::now() - prev, "ms");
             let rng = create_rng();
             console!(log, "Creating ExtendedOT receiver...");
-            IKNPExtendedOTReceiver::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
+            let prev = Date::now();
+            IKNPExtendedOTReceiver::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM).map(move |e| (prev, e))
         })
-        .and_then(enclose! { (choices) move |ext_ot| {
-            console!(log, "ExtendedOT receiver created.");
+        .and_then(enclose! { (choices) move |(prev, ext_ot)| {
+            console!(log, "ExtendedOT receiver creation took ", Date::now() - prev, "ms");
             console!(log, "Receiving values...");
-            ext_ot.receive(choices)
+            let prev = Date::now();
+            ext_ot.receive(choices).map(move |(qs, ext)| (prev, qs, ext))
         }})
-        .map(|(qs, ext_ot)| {
-            console!(log, "Values received...");
+        .map(|(prev, qs, ext_ot)| {
+            console!(log, "ExtendedOT receive took ", Date::now() - prev, "ms");
             let mut result = GFElement(0);
             for q in qs.into_iter().map(|e| GFElement::from_bytes(e)) {
                 result += q;
@@ -90,22 +91,26 @@ where
         .and_then(|(result, conn)| {
             let rng = create_rng();
             console!(log, "Creating BaseOT receiver...");
+            let prev = Date::now();
             ChouOrlandiOTReceiver::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
-                .map(move |e| (result, e))
+                .map(move |e| (prev, result, e))
         })
-        .and_then(|(result, base_ot)| {
-            console!(log, "BaseOT receiver created.");
+        .and_then(|(prev, result, base_ot)| {
+            console!(log, "BaseOT receiver creation took ", Date::now() - prev, "ms");
             let rng = create_rng();
             console!(log, "Creating ExtendedOT sender...");
+            let prev = Date::now();
             IKNPExtendedOTSender::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
-                .map(move |e| (result, e))
+                .map(move |e| (prev, result, e))
         })
-        .and_then(|(result, ext_ot)| {
-            console!(log, "ExtendedOT sender created.");
+        .and_then(|(prev, result, ext_ot)| {
+            console!(log, "ExtendedOT sender creation took ", Date::now() - prev, "ms");
             console!(log, "sending values...");
-            ext_ot.send(pairs).map(move |e| (result, e))
+            let prev = Date::now();
+            ext_ot.send(pairs).map(move |e| (prev, result, e))
         })
-        .map(move |(recv_result, _)| {
+        .map(move |(prev, recv_result, _)| {
+            console!(log, "ExtendedOT send took ", Date::now() - prev, "ms");
             let mut send_result = GFElement(0);
             for t in ts.into_iter() {
                 send_result += t;
@@ -118,6 +123,8 @@ fn main() {
     let mut rng = create_rng();
     let a = GFElement::random(&mut rng);
     let b = GFElement::random(&mut rng);
+    console!(log, "Please disable privacy.reduceTimerPrecision and privacy.resistFingerprinting in Firefox or equivalent settings in chrome, so time measurements are precise!");
+    let whole = Date::now();
     let future = WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])
         .into_future()
         .map_err(|e| Error::with_chain(e, "Could not establish connection"))
@@ -157,6 +164,7 @@ fn main() {
                     (other_c + c).0
                 )
             );
+            console!(log, "Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took ", Date::now() - whole, "ms")
         })
         .recover(|e| {
             console!(error, format!("{}", e.display_chain()));

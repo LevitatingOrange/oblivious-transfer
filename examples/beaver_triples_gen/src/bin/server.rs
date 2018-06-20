@@ -120,6 +120,7 @@ fn main() {
             Ok(Some(extra_headers))
         };
         spawn(move || {
+            let now = Instant::now();
             let stream = accept_hdr(stream.unwrap(), callback).unwrap();
             let mut rng = ChaChaRng::from_entropy();
 
@@ -128,6 +129,7 @@ fn main() {
             let c = calculate_beaver_triple(stream, a, b);
 
             println!("Triple generated: [{}] * [{}] = [{}]", a.0, b.0, c.0);
+            println!("Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took {:?}", now.elapsed())
         });
     }
 }
