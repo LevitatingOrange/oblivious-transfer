@@ -1,2 +1,2 @@
 [workspace]
-members = ["server", "client"]
+members = ["simple_transfer", "beaver_triples_gen"]
