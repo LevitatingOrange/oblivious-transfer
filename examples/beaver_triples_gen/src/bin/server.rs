@@ -1,24 +1,22 @@
 extern crate beaver_triples_gen;
+extern crate bit_vec;
 extern crate ot;
 extern crate rand;
 extern crate tungstenite;
 
+use bit_vec::BitVec;
 use ot::common::digest::sha3::SHA3_256;
-use ot::common::util::{generate_random_choices, generate_random_string_pairs};
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::communication::{BinaryReceive, BinarySend, GetConn};
 use ot::sync::crypto::aes::AesCryptoProvider;
 use ot::sync::ot_extension::iknp::{IKNPExtendedOTReceiver, IKNPExtendedOTSender};
 use ot::sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
-use rand::distributions::range::Range;
-use rand::{ChaChaRng, CryptoRng, FromEntropy, RngCore};
+use rand::{ChaChaRng, FromEntropy};
 use std::net::TcpListener;
 use std::thread::spawn;
 use tungstenite::handshake::server::Request;
 use tungstenite::server::accept_hdr;
 
-use rand::distributions::Distribution;
-use std::ops::{Add, AddAssign, Mul, Neg, Sub};
 use std::time::Instant;
 
 use beaver_triples_gen::*;
@@ -27,7 +25,6 @@ fn calculate_beaver_triple<T>(conn: T, a: GFElement, b: GFElement) -> GFElement
 where
     T: BinaryReceive + BinarySend,
 {
-    let range = Range::new(0, MODULUS);
     let mut rng = ChaChaRng::from_entropy();
 
     let ts: Vec<GFElement> = (0..K).map(|_| GFElement::random(&mut rng)).collect();
@@ -39,6 +36,8 @@ where
             (t.to_bytes(), (*t + x).to_bytes())
         })
         .collect();
+    let bytes = b.to_bytes();
+    let choices: BitVec = BitVec::from_bytes(&bytes).into_iter().rev().collect();
 
     let mut rng = ChaChaRng::from_entropy();
     println!("Creating BaseOT receiver...");
@@ -61,36 +60,48 @@ where
         .unwrap();
     println!("IKNP send took {:?}", now.elapsed());
 
-    let mut aggregated_result = GFElement(0);
+    let mut send_result = GFElement(0);
     for t in ts.into_iter() {
-        aggregated_result += t;
+        send_result += t;
     }
-    -aggregated_result
 
-    //rng = ChaChaRng::from_entropy();
+    rng = ChaChaRng::from_entropy();
 
-    // println!("Creating BaseOT sender...");
-    // now = Instant::now();
-    // let ot_send = ChouOrlandiOTSender::new(
-    //     ot_ext_send.get_conn(),
-    //     SHA3_256::default(),
-    //     AesCryptoProvider::default(),
-    //     rng,
-    // ).unwrap();
-    // println!("chou ot sender creation took {:?}", now.elapsed());
-    // now = Instant::now();
-    // let mut ot_ext_recv =
-    //     IKNPExtendedOTReceiver::new(SHA3_256::default(), ot_send, rng.clone(), SECURITY_PARAM)
-    //         .unwrap();
-    // println!("IKNP receiver creation took {:?}", now.elapsed());
-    // now = Instant::now();
-    // let values = ot_ext_recv.receive(&choice_bits).unwrap();
-    // println!("IKNP send took {:?}", now.elapsed());
-    // let zipped: Vec<(bool, String)> = choice_bits
-    //     .iter()
-    //     .zip(values.into_iter().map(|s| String::from_utf8(s).unwrap()))
-    //     .collect();
-    // println!("Received values: {:?}", zipped);
+    println!("Creating BaseOT sender...");
+    now = Instant::now();
+    let ot_send = ChouOrlandiOTSender::new(
+        ot_ext_send.get_conn(),
+        SHA3_256::default(),
+        AesCryptoProvider::default(),
+        rng,
+    ).unwrap();
+    println!("chou ot sender creation took {:?}", now.elapsed());
+
+    rng = ChaChaRng::from_entropy();
+    now = Instant::now();
+    let mut ot_ext_recv =
+        IKNPExtendedOTReceiver::new(SHA3_256::default(), ot_send, rng.clone(), SECURITY_PARAM)
+            .unwrap();
+    println!("IKNP receiver creation took {:?}", now.elapsed());
+    now = Instant::now();
+    let qs = ot_ext_recv.receive(&choices).unwrap();
+    println!("IKNP send took {:?}", now.elapsed());
+
+    let mut recv_result = GFElement(0);
+    for q in qs.into_iter().map(|e| GFElement::from_bytes(e)) {
+        recv_result += q;
+    }
+
+    let c = a * b + (-send_result) + recv_result;
+    println!("Sending to client for verification...");
+    let mut v1 = a.to_bytes();
+    let mut v2 = b.to_bytes();
+    let mut v3 = c.to_bytes();
+    v1.append(&mut v2);
+    v1.append(&mut v3);
+    ot_ext_recv.get_conn().send(&v1).unwrap();
+    println!("Sent to client for verification.");
+    c
 }
 
 fn main() {
@@ -110,16 +121,13 @@ fn main() {
         };
         spawn(move || {
             let stream = accept_hdr(stream.unwrap(), callback).unwrap();
-            let range = Range::new(0, MODULUS);
             let mut rng = ChaChaRng::from_entropy();
 
             let a = GFElement::random(&mut rng);
             let b = GFElement::random(&mut rng);
             let c = calculate_beaver_triple(stream, a, b);
 
-            println!("a = [{}], b = [{}], c = [{}]", a.0, b.0, c.0);
-
-            //println!("{:?}", sender.compute_keys(10));
+            println!("Triple generated: [{}] * [{}] = [{}]", a.0, b.0, c.0);
         });
     }
 }

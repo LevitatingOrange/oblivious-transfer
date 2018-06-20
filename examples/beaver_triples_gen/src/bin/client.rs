@@ -22,8 +22,6 @@ use ot::async::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
 use ot::common::digest::sha3::SHA3_256;
 use ot::errors::*;
 use rand::{ChaChaRng, SeedableRng};
-use std::result;
-use std::string;
 use std::sync::{Arc, Mutex};
 use stdweb::unstable::TryInto;
 use stdweb::web::TypedArray;
@@ -52,8 +50,19 @@ fn calculate_beaver_triple<'a, T>(
 where
     T: 'a + BinarySend + BinaryReceive,
 {
+    let mut rng = create_rng();
+    let ts: Vec<GFElement> = (0..K).map(|_| GFElement::random(&mut rng)).collect();
+    let pairs: Vec<(Vec<u8>, Vec<u8>)> = ts
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let x = a * GFElement::new(1 << i);
+            (t.to_bytes(), (*t + x).to_bytes())
+        })
+        .collect();
     let bytes = b.to_bytes();
     let choices: BitVec = BitVec::from_bytes(&bytes).into_iter().rev().collect();
+
     let s = format!("Length: {}", choices.len());
     console!(log, s);
     let rng = create_rng();
@@ -70,15 +79,40 @@ where
             console!(log, "Receiving values...");
             ext_ot.receive(choices)
         }})
-        .map(|(qs, _)| {
-            let mut aggregated_result = GFElement(0);
+        .map(|(qs, ext_ot)| {
+            console!(log, "Values received...");
+            let mut result = GFElement(0);
             for q in qs.into_iter().map(|e| GFElement::from_bytes(e)) {
-                aggregated_result += q;
+                result += q;
             }
-            aggregated_result
+            (result, ext_ot.get_conn())
+        })
+        .and_then(|(result, conn)| {
+            let rng = create_rng();
+            console!(log, "Creating BaseOT receiver...");
+            ChouOrlandiOTReceiver::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
+                .map(move |e| (result, e))
+        })
+        .and_then(|(result, base_ot)| {
+            console!(log, "BaseOT receiver created.");
+            let rng = create_rng();
+            console!(log, "Creating ExtendedOT sender...");
+            IKNPExtendedOTSender::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
+                .map(move |e| (result, e))
+        })
+        .and_then(|(result, ext_ot)| {
+            console!(log, "ExtendedOT sender created.");
+            console!(log, "sending values...");
+            ext_ot.send(pairs).map(move |e| (result, e))
+        })
+        .map(move |(recv_result, _)| {
+            let mut send_result = GFElement(0);
+            for t in ts.into_iter() {
+                send_result += t;
+            }
+            a * b + (-send_result) + recv_result
         })
 }
-
 fn main() {
     stdweb::initialize();
     let mut rng = create_rng();
@@ -88,10 +122,41 @@ fn main() {
         .into_future()
         .map_err(|e| Error::with_chain(e, "Could not establish connection"))
         .and_then(|socket| WasmWebSocket::open(socket))
-        .and_then(move |ws| calculate_beaver_triple(ws, a, b))
-        .map(move |c| {
-            let s = format!("a = [{}], b = [{}], c = [{}]", a.0, b.0, c.0);
-            console!(log, s);
+        .and_then(move |ws| calculate_beaver_triple(ws.clone(), a, b).map(|c| (c, ws)))
+        .and_then(move |(c, conn)| {
+            console!(log, "values sent.");
+            console!(log, "Getting share from server for verification...");
+            let lock = conn.lock().unwrap();
+            lock.receive().map(move |(_, shares)| (c, shares))
+        })
+        .map(move |(c, shares)| {
+            let other_a = GFElement::from_bytes(shares[..8].to_vec());
+            let other_b = GFElement::from_bytes(shares[8..16].to_vec());
+            let other_c = GFElement::from_bytes(shares[16..24].to_vec());
+            console!(
+                log,
+                format!(
+                    "My triples:    [{:>20}] * [{:>20}] = [{:>20}]",
+                    a.0, b.0, c.0
+                )
+            );
+            console!(
+                log,
+                format!(
+                    "Their triples: [{:>20}] * [{:>20}] = [{:>20}]",
+                    other_a.0, other_b.0, other_c.0
+                )
+            );
+            console!(
+                log,
+                format!(
+                    "Combined:       {:>20}  *  {:>20}  {}  {:>20}",
+                    (other_a + a).0,
+                    (other_b + b).0,
+                    if (a + other_a) * (b + other_b) == (c + other_c) {"="} else {"≠"},
+                    (other_c + c).0
+                )
+            );
         })
         .recover(|e| {
             console!(error, format!("{}", e.display_chain()));

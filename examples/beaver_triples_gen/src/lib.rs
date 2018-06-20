@@ -7,9 +7,6 @@ use std::mem::transmute;
 use std::ops::{Add, AddAssign, Mul, Neg, Sub};
 
 // modulus is < 2^63 so addition never overflows
-// this is just so this small example is easier
-// in a correct implementation this has to
-// be implemented correctly
 pub const MODULUS: u64 = 9223372036854775783;
 pub const K: usize = 64;
 pub const SECURITY_PARAM: usize = 16;
