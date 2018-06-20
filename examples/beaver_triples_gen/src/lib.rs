@@ -6,10 +6,12 @@ use rand::{ChaChaRng, CryptoRng, FromEntropy, RngCore};
 use std::mem::transmute;
 use std::ops::{Add, AddAssign, Mul, Neg, Sub};
 
-// modulus is < 64/2 so no overflow when adding occurs
-// TODO: fix this properly
-pub const MODULUS: u64 = 4294967291;
-pub const K: usize = 8;
+// modulus is < 2^63 so addition never overflows
+// this is just so this small example is easier
+// in a correct implementation this has to
+// be implemented correctly
+pub const MODULUS: u64 = 9223372036854775783;
+pub const K: usize = 64;
 pub const SECURITY_PARAM: usize = 16;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,8 +60,9 @@ impl AddAssign for GFElement {
 
 impl Mul for GFElement {
     type Output = Self;
-    fn mul(self, other: GFElement) -> Self {
-        GFElement((self.0 * other.0) % MODULUS)
+    fn mul(self, rhs: GFElement) -> GFElement {
+        let r = ((self.0 as u128) * (rhs.0 as u128)) % (MODULUS as u128);
+        GFElement(r as u64)
     }
 }
 

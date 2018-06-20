@@ -53,7 +53,9 @@ where
     T: 'a + BinarySend + BinaryReceive,
 {
     let bytes = b.to_bytes();
-    let choices = BitVec::from_bytes(&bytes);
+    let choices: BitVec = BitVec::from_bytes(&bytes).into_iter().rev().collect();
+    let s = format!("Length: {}", choices.len());
+    console!(log, s);
     let rng = create_rng();
     console!(log, "Creating BaseOT sender...");
     ChouOrlandiOTSender::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
@@ -70,10 +72,10 @@ where
         }})
         .map(|(qs, _)| {
             let mut aggregated_result = GFElement(0);
-            for (i, q) in qs.into_iter().map(|e| GFElement::from_bytes(e)).enumerate() {
-                aggregated_result += q * GFElement((1 as u64) << (i as u64));
+            for q in qs.into_iter().map(|e| GFElement::from_bytes(e)) {
+                aggregated_result += q;
             }
-            -aggregated_result
+            aggregated_result
         })
 }
 
@@ -88,7 +90,7 @@ fn main() {
         .and_then(|socket| WasmWebSocket::open(socket))
         .and_then(move |ws| calculate_beaver_triple(ws, a, b))
         .map(move |c| {
-            let s = format!("[{}] + [{}] = [{}]", a.0, b.0, c.0);
+            let s = format!("a = [{}], b = [{}], c = [{}]", a.0, b.0, c.0);
             console!(log, s);
         })
         .recover(|e| {

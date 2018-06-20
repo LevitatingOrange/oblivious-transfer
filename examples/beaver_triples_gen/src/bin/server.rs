@@ -33,7 +33,11 @@ where
     let ts: Vec<GFElement> = (0..K).map(|_| GFElement::random(&mut rng)).collect();
     let pairs: Vec<(Vec<u8>, Vec<u8>)> = ts
         .iter()
-        .map(|t| (t.to_bytes(), (*t + a).to_bytes()))
+        .enumerate()
+        .map(|(i, t)| {
+            let x = a * GFElement::new(1 << i);
+            (t.to_bytes(), (*t + x).to_bytes())
+        })
         .collect();
 
     let mut rng = ChaChaRng::from_entropy();
@@ -58,8 +62,8 @@ where
     println!("IKNP send took {:?}", now.elapsed());
 
     let mut aggregated_result = GFElement(0);
-    for (i, t) in ts.iter().enumerate() {
-        aggregated_result += *t * GFElement((1 as u64) << (i as u64));
+    for t in ts.into_iter() {
+        aggregated_result += t;
     }
     -aggregated_result
 
@@ -113,7 +117,7 @@ fn main() {
             let b = GFElement::random(&mut rng);
             let c = calculate_beaver_triple(stream, a, b);
 
-            println!("[{}] * [{}] = [{}]", a.0, b.0, c.0);
+            println!("a = [{}], b = [{}], c = [{}]", a.0, b.0, c.0);
 
             //println!("{:?}", sender.compute_keys(10));
         });
