@@ -1,12 +1,14 @@
+extern crate byte_tools;
 /// used to allow benchmarking
 extern crate ot;
 extern crate rand;
-extern crate byte_tools;
 
 //extern crate tungstenite;
 
 use ot::common::digest::sha3::SHA3_256;
-use ot::common::util::{generate_random_choices, generate_random_string_pairs};
+use ot::common::util::{
+    create_random_strings, generate_random_choices, generate_random_string_pairs,
+};
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 use ot::sync::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::sync::communication::{BinaryReceive, BinarySend, GetConn};
@@ -50,22 +52,22 @@ fn main() {
             //let stream = accept_hdr(stream.unwrap(), callback).unwrap();
             let mut stream = stream.unwrap();
             let comm_switch = String::from_utf8(stream.receive().unwrap()).unwrap();
+
+            let bytes = stream.receive().unwrap();
+            let n = read_u64_be(&bytes) as usize;
+            let bytes = stream.receive().unwrap();
+            let l = read_u64_be(&bytes) as usize;
+
+            let mut rng = ChaChaRng::from_entropy();
+
             if &comm_switch == "receive" {
-                let bytes = stream.receive().unwrap();
-                let n = read_u64_be(&bytes) as usize;
-
                 //println!("Bytes: {:?}", bytes);
-
                 //println!("Length: {}", n);
-
-                let mut rng = ChaChaRng::from_entropy();
                 let dist = Range::new(0, n);
                 let choice = rng.sample(dist);
-
                 //println!("Generated random index: {:?}", choice);
-
                 //println!("Creating BaseOT receiver...");
-                let mut now = Instant::now();
+                //let mut now = Instant::now();
                 let mut ot_recv = ChouOrlandiOTReceiver::new(
                     stream,
                     SHA3_256::default(),
@@ -73,12 +75,23 @@ fn main() {
                     rng.clone(),
                 ).unwrap();
                 //println!("chou ot receiver creation took {:?}", now.elapsed());
-                now = Instant::now();
+                //now = Instant::now();
                 let values = ot_recv.receive(choice, n).unwrap();
-                //println!("Received values: {:?}", values);
-                //println!("OT receive took {:?}", now.elapsed());
+            //println!("Received values: {:?}", values);
+            //println!("OT receive took {:?}", now.elapsed());
             } else {
-                unimplemented!();
+                let strings: Vec<Vec<u8>> = create_random_strings(n, l)
+                    .into_iter()
+                    .map(|s| s.into_bytes())
+                    .collect();
+                let mut ot = ChouOrlandiOTSender::new(
+                    stream,
+                    SHA3_256::default(),
+                    AesCryptoProvider::default(),
+                    rng,
+                ).unwrap();
+                ot.send(strings.iter().map(|s| s.as_slice()).collect())
+                    .unwrap();
             }
 
             // println!("Creating BaseOT receiver...");
