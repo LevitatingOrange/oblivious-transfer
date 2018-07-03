@@ -3,7 +3,7 @@ extern crate byte_tools;
 extern crate ot;
 extern crate rand;
 
-//extern crate tungstenite;
+extern crate tungstenite;
 
 use ot::common::digest::sha3::SHA3_256;
 use ot::common::util::{
@@ -25,8 +25,50 @@ use std::time::Instant;
 // use tungstenite::server::accept_hdr;
 
 use byte_tools::read_u64_be;
+use tungstenite::server::accept;
 
 use std::env::args;
+
+fn serve<T>(stream: T, n: usize, l: usize, comm_switch: bool)
+where
+    T: BinarySend + BinaryReceive,
+{
+    let mut rng = ChaChaRng::from_entropy();
+
+    if comm_switch {
+        //println!("Bytes: {:?}", bytes);
+        //println!("Length: {}", n);
+        let dist = Range::new(0, n);
+        let choice = rng.sample(dist);
+        //println!("Generated random index: {:?}", choice);
+        //println!("Creating BaseOT receiver...");
+        //let mut now = Instant::now();
+        let mut ot_recv = ChouOrlandiOTReceiver::new(
+            stream,
+            SHA3_256::default(),
+            AesCryptoProvider::default(),
+            rng.clone(),
+        ).unwrap();
+        //println!("chou ot receiver creation took {:?}", now.elapsed());
+        //now = Instant::now();
+        let values = ot_recv.receive(choice, n).unwrap();
+    //println!("Received values: {:?}", values);
+    //println!("OT receive took {:?}", now.elapsed());
+    } else {
+        let strings: Vec<Vec<u8>> = create_random_strings(n, l)
+            .into_iter()
+            .map(|s| s.into_bytes())
+            .collect();
+        let mut ot = ChouOrlandiOTSender::new(
+            stream,
+            SHA3_256::default(),
+            AesCryptoProvider::default(),
+            rng,
+        ).unwrap();
+        ot.send(strings.iter().map(|s| s.as_slice()).collect())
+            .unwrap();
+    }
+}
 
 fn main() {
     //let args = args();
@@ -51,47 +93,21 @@ fn main() {
 
             //let stream = accept_hdr(stream.unwrap(), callback).unwrap();
             let mut stream = stream.unwrap();
-            let comm_switch = String::from_utf8(stream.receive().unwrap()).unwrap();
+            let stream_switch =
+                &String::from_utf8(stream.receive().unwrap()).unwrap() == "websocket";
+            let comm_switch = &String::from_utf8(stream.receive().unwrap()).unwrap() == "receive";
 
             let bytes = stream.receive().unwrap();
             let n = read_u64_be(&bytes) as usize;
             let bytes = stream.receive().unwrap();
             let l = read_u64_be(&bytes) as usize;
 
-            let mut rng = ChaChaRng::from_entropy();
-
-            if &comm_switch == "receive" {
-                //println!("Bytes: {:?}", bytes);
-                //println!("Length: {}", n);
-                let dist = Range::new(0, n);
-                let choice = rng.sample(dist);
-                //println!("Generated random index: {:?}", choice);
-                //println!("Creating BaseOT receiver...");
-                //let mut now = Instant::now();
-                let mut ot_recv = ChouOrlandiOTReceiver::new(
-                    stream,
-                    SHA3_256::default(),
-                    AesCryptoProvider::default(),
-                    rng.clone(),
-                ).unwrap();
-                //println!("chou ot receiver creation took {:?}", now.elapsed());
-                //now = Instant::now();
-                let values = ot_recv.receive(choice, n).unwrap();
-            //println!("Received values: {:?}", values);
-            //println!("OT receive took {:?}", now.elapsed());
+            if stream_switch {
+                // Websocket
+                serve(accept(stream).unwrap(), n, l, comm_switch);
             } else {
-                let strings: Vec<Vec<u8>> = create_random_strings(n, l)
-                    .into_iter()
-                    .map(|s| s.into_bytes())
-                    .collect();
-                let mut ot = ChouOrlandiOTSender::new(
-                    stream,
-                    SHA3_256::default(),
-                    AesCryptoProvider::default(),
-                    rng,
-                ).unwrap();
-                ot.send(strings.iter().map(|s| s.as_slice()).collect())
-                    .unwrap();
+                // Tcp
+                serve(stream, n, l, comm_switch);
             }
 
             // println!("Creating BaseOT receiver...");
