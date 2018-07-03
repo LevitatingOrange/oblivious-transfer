@@ -220,7 +220,6 @@ impl<
     }
 }
 
-
 impl<
         C: BinarySend + BinaryReceive,
         R: RngCore + CryptoRng,
