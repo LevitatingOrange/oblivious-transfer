@@ -105,7 +105,7 @@ where
 }
 
 fn main() {
-    let server = TcpListener::bind("127.0.0.1:3012").unwrap();
+    let server = TcpListener::bind("192.168.178.28:3012").unwrap();
     for stream in server.incoming() {
         let callback = |req: &Request| {
             println!("Received a new ws handshake");
