@@ -434,20 +434,20 @@ mod tests {
         );
     }
 
-    #[test]
-    fn tcp_with_sodium_encryption() {
-        generate_communication_test!(
-            TcpListener::bind("127.0.0.1:1240")
-                .unwrap()
-                .accept()
-                .unwrap()
-                .0,
-            TcpStream::connect("127.0.0.1:1240").unwrap(),
-            SHA3_256::default(),
-            SodiumCryptoProvider::default(),
-            SodiumCryptoProvider::default()
-        );
-    }
+    // #[test]
+    // fn tcp_with_sodium_encryption() {
+    //     generate_communication_test!(
+    //         TcpListener::bind("127.0.0.1:1240")
+    //             .unwrap()
+    //             .accept()
+    //             .unwrap()
+    //             .0,
+    //         TcpStream::connect("127.0.0.1:1240").unwrap(),
+    //         SHA3_256::default(),
+    //         SodiumCryptoProvider::default(),
+    //         SodiumCryptoProvider::default()
+    //     );
+    // }
 
     #[test]
     fn websocket_with_dummy_encryption() {
