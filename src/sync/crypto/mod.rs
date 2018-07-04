@@ -1,14 +1,15 @@
 //! This module provides utility traits and wrappers
 //! for symmetric block ciphers. As we need these
 //! for some of our protocols we have implemented
-//! them for AES and Sodium. If you want to use
+//! AES. Sodium is disabled at the moment but will get 
+//! a future flag eventually. If you want to use
 //! another cipher it should be trivial to implement these traits.
 
 use errors::*;
 use generic_array::{ArrayLength, GenericArray};
 pub mod aes;
 pub mod dummy;
-pub mod sodium;
+//pub mod sodium;
 
 // TODO: is this a good interface? should there maybe be only one trait?
 

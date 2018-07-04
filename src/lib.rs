@@ -54,8 +54,8 @@ extern crate url;
 #[macro_use]
 extern crate itertools;
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-extern crate rust_sodium;
+// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+// extern crate rust_sodium;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 extern crate stdweb;

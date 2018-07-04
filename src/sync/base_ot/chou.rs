@@ -239,7 +239,7 @@ mod tests {
     use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::communication::corrupted::CorruptedChannel;
     use sync::crypto::{
-        aes::AesCryptoProvider, dummy::DummyCryptoProvider, sodium::SodiumCryptoProvider,
+        aes::AesCryptoProvider, dummy::DummyCryptoProvider, //sodium::SodiumCryptoProvider,
     };
     use tungstenite::client::connect;
     use tungstenite::server::accept;
@@ -468,24 +468,24 @@ mod tests {
         );
     }
 
-    #[test]
-    fn websocket_with_sodium_encryption() {
-        generate_communication_test!(
-            accept(
-                TcpListener::bind("127.0.0.1:1242")
-                    .unwrap()
-                    .accept()
-                    .unwrap()
-                    .0
-            ).unwrap(),
-            connect(Url::parse("ws://localhost:1242/socket").unwrap())
-                .unwrap()
-                .0,
-            SHA3_256::default(),
-            SodiumCryptoProvider::default(),
-            SodiumCryptoProvider::default()
-        );
-    }
+    // #[test]
+    // fn websocket_with_sodium_encryption() {
+    //     generate_communication_test!(
+    //         accept(
+    //             TcpListener::bind("127.0.0.1:1242")
+    //                 .unwrap()
+    //                 .accept()
+    //                 .unwrap()
+    //                 .0
+    //         ).unwrap(),
+    //         connect(Url::parse("ws://localhost:1242/socket").unwrap())
+    //             .unwrap()
+    //             .0,
+    //         SHA3_256::default(),
+    //         SodiumCryptoProvider::default(),
+    //         SodiumCryptoProvider::default()
+    //     );
+    // }
 
     #[test]
     fn websocket_with_aes_gcm_encryption() {
