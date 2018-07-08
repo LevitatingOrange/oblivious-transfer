@@ -120,15 +120,15 @@ fn ot_native_send_benchmark(c: &mut Criterion) {
 
     c.bench_functions(&format!("SimpleOT Sender n={},l={}", n, l), funs, ());
 
-    c.bench_function(
-        &format!("SimpleOT Sender TCP n={},l={} Setup Only", n, l),
-        move |b| {
-            b.iter_with_setup(
-                move || tcp_setup(n, l, "receive"),
-                |t| simple_ot_send(t, false),
-            )
-        },
-    );
+    // c.bench_function(
+    //     &format!("SimpleOT Sender TCP n={},l={} Setup Only", n, l),
+    //     move |b| {
+    //         b.iter_with_setup(
+    //             move || tcp_setup(n, l, "receive"),
+    //             |t| simple_ot_send(t, false),
+    //         )
+    //     },
+    // );
     // c.bench_function_over_inputs(&format!("ot_native_tcp_n_{}", l), move |b, &&growing_n| {
     //     b.iter_with_setup(move || tcp_setup(growing_n, l, "receive"), |t| simple_ot_receive(t, true))
     // }, &[10, 100, 1000, 10000]);
@@ -166,15 +166,15 @@ fn ot_native_receive_benchmark(c: &mut Criterion) {
 
     c.bench_functions(&format!("SimpleOT Receiver n={},l={}", n, l), funs, ());
 
-    c.bench_function(
-        &format!("SimpleOT Receiver TCP n={},l={}, Setup only", n, l),
-        move |b| {
-            b.iter_with_setup(
-                move || tcp_setup(n, l, "send"),
-                |t| simple_ot_receive(t, false),
-            )
-        },
-    );
+    // c.bench_function(
+    //     &format!("SimpleOT Receiver TCP n={},l={}, Setup only", n, l),
+    //     move |b| {
+    //         b.iter_with_setup(
+    //             move || tcp_setup(n, l, "send"),
+    //             |t| simple_ot_receive(t, false),
+    //         )
+    //     },
+    // );
     // c.bench_function_over_inputs(
     //     &format!("SimpleOT Receiver n, l={}", l),
     //     move |b, &&growing_n| {
