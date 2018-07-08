@@ -199,7 +199,7 @@ fn ot_native_receive_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    //ot_native_send_benchmark,
+    ot_native_send_benchmark,
     ot_native_receive_benchmark
 );
 criterion_main!(benches);
