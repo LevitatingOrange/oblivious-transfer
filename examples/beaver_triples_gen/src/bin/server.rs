@@ -16,6 +16,7 @@ use std::net::TcpListener;
 use std::thread::spawn;
 use tungstenite::handshake::server::Request;
 use tungstenite::server::accept_hdr;
+use std::env;
 
 use std::time::Instant;
 
@@ -105,7 +106,9 @@ where
 }
 
 fn main() {
-    let server = TcpListener::bind("192.168.178.28:3012").unwrap();
+    let address = env::args().nth(1).unwrap_or("localhost:3012".to_string());
+
+    let server = TcpListener::bind(address).unwrap();
     for stream in server.incoming() {
         let callback = |req: &Request| {
             println!("Received a new ws handshake");

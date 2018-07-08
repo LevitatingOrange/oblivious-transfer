@@ -1,4 +1,5 @@
-extern crate futures;
+extern crate futures_core;
+extern crate futures_util;
 #[macro_use]
 extern crate stdweb;
 extern crate error_chain;
@@ -10,7 +11,8 @@ extern crate rand;
 extern crate tiny_keccak;
 
 use error_chain::ChainedError;
-use futures::prelude::*;
+use futures_core::{Future, IntoFuture};
+use futures_util::future::*;
 use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 //use ot::async::base_ot::{BaseOTReceiver, BaseOTSender};
 use beaver_triples_gen::*;
