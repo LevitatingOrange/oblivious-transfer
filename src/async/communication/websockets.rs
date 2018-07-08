@@ -1,7 +1,7 @@
 use super::{BinaryReceive, BinarySend};
 use errors::*;
-use futures::prelude::task::{Context, Waker};
-use futures::prelude::*;
+use futures_core::task::{Context, Waker};
+use futures_core::{Async, Future};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, Weak};
 use std::vec::Vec;

@@ -1,5 +1,5 @@
 use errors::*;
-use futures::Future;
+use futures_core::Future;
 use generic_array::{ArrayLength, GenericArray};
 pub mod aes_browser;
 pub mod dummy;

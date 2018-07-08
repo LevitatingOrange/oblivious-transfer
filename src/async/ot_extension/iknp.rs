@@ -5,8 +5,11 @@ use bit_vec::BitVec;
 use common::digest::ArbitraryDigest;
 use common::util::{bv_truncate, trunc_hash};
 use errors::*;
-use futures::prelude::*;
-use futures::stream;
+use futures_core::Future;
+use futures_util::FutureExt;
+use futures_util::future::*;
+use futures_core::stream;
+use futures_util::stream::*;
 use rand::{CryptoRng, Rng, RngCore};
 use std::sync::{Arc, Mutex};
 
@@ -44,7 +47,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
     {
         let l = security_param * 8;
         let state = (Some(base_ot_sender), 0);
-        let stream = stream::unfold(state, move |(sender, i): (Option<S>, usize)| {
+        let stream = unfold(state, move |(sender, i): (Option<S>, usize)| {
             if i < l {
                 let mut k0: Vec<u8> = Vec::with_capacity(security_param);
                 let mut k1: Vec<u8> = Vec::with_capacity(security_param);
@@ -107,7 +110,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> Ex
         // because the enclose macro does not expect self.*, maybe fix this in the macro
         let conn = self.conn.clone();
         let hasher = self.arbitrary_hasher.clone();
-        let fut = stream::iter_ok(t_mat)
+        let fut = iter_ok(t_mat)
             .and_then(enclose!{ (conn, choice_bits) move |(t, k1)| {
                 assert_eq!(t.len(), output_size, "internal error, lengths don't match.");
                 assert_eq!(t.len(), k1.len(), "internal error, lengths don't match.");
@@ -127,7 +130,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> Ex
             }})
             .collect()
             .and_then(enclose! { (conn) move |t_mat: Vec<BitVec>| {
-                stream::iter_ok(0..output_size).and_then(move |i| {
+                iter_ok(0..output_size).and_then(move |i| {
                     let t_mat = t_mat.clone();
                     let lock = conn.lock().unwrap();
                     let mut hasher = hasher.clone();
@@ -203,7 +206,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone>
         let state = (Some(base_ot_receiver), 0);
         // let mut random_choices = BitVec::with_capacity(security_param);
         // let mut initial = Vec::with_capacity(security_param);
-        let stream = stream::unfold(state, move |(sender, i): (Option<S>, usize)| {
+        let stream = unfold(state, move |(sender, i): (Option<S>, usize)| {
             if i < l {
                 let choice: bool = rng.gen();
                 let future = sender
@@ -251,7 +254,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> Ex
 
         let conn = self.conn.clone();
         let arbitrary_hasher = self.arbitrary_hasher.clone();
-        let stream = stream::iter_ok(0..security_parameter)
+        let stream = iter_ok(0..security_parameter)
             .and_then(enclose! { (conn) move |_| {
                 let lock = conn.lock().unwrap();
                 lock.receive().map(move |(_, s)| bv_truncate(&s, output_size))
@@ -278,7 +281,7 @@ impl<'a, T: 'a + BinaryReceive + BinarySend, A: 'a + ArbitraryDigest + Clone> Ex
                                 .collect()
                         })
                         .collect();
-                    let fut = stream::iter_ok(0..output_size)
+                    let fut = iter_ok(0..output_size)
                         .and_then(enclose!{ (conn, arbitrary_hasher, random_choices) move |i| {
                             let lock = conn.lock().unwrap();
                             let n = values[i].0.len();

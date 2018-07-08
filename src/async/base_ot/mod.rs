@@ -6,7 +6,7 @@
 pub mod chou;
 
 use errors::*;
-use futures::Future;
+use futures_core::Future;
 
 pub trait BaseOTSender<'a> {
     // sadly, impl Trait is not available in trait methods, so we have to use a Box here

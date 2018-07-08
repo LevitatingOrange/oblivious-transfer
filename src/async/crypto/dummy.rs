@@ -2,7 +2,8 @@
 /// Only here to test, should not be used for anything.
 use super::{SymmetricDecryptor, SymmetricEncryptor};
 use errors::*;
-use futures::future::{ok, Future};
+use futures_core::{Future};
+use futures_core::future::ok;
 use generic_array::{ArrayLength, GenericArray};
 
 #[derive(Default)]

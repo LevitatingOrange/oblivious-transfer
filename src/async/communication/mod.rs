@@ -8,7 +8,7 @@ pub mod websockets;
 // TODO consider rtc?!
 
 use errors::*;
-use futures::Future;
+use futures_core::Future;
 use std::sync::{Arc, Mutex};
 
 pub trait BinarySend {

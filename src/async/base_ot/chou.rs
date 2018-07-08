@@ -9,8 +9,13 @@ use curve25519_dalek::scalar::*;
 /// for all following explanations consider [https://eprint.iacr.org/2015/267.pdf] as source
 /// TODO: make this parallel
 use errors::*;
-use futures::prelude::*;
-use futures::stream;
+//use futures::prelude::*;
+use futures_core::Future;
+use futures_util::FutureExt;
+use futures_util::future::*;
+use futures_core::stream;
+use futures_util::stream::*;
+//use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
 use rand::{CryptoRng, RngCore};
 use std::sync::{Arc, Mutex};
@@ -160,7 +165,7 @@ impl<
                     // arrives to the rust compiler or the library is more featureful,
                     // this could be simplified greatly.
                     let state = (Some(s), keys.into_iter().zip(values).rev().collect());
-                    let stream = stream::unfold(
+                    let stream = unfold(
                         state,
                         |(mut s, mut kv): (Option<Self>, Vec<(GenericArray<u8, L>, Vec<u8>)>)| {
                             if let Some((key, value)) = kv.pop() {
@@ -291,7 +296,7 @@ impl<
                 .map_err(|e| Error::with_chain(e, "Error computing keys"))
                 .and_then(move |(mut s, key)| {
                     let state = (Arc::clone(&s.conn), 0);
-                    stream::unfold(state, move |(conn, i): (Arc<Mutex<C>>, usize)| {
+                    unfold(state, move |(conn, i): (Arc<Mutex<C>>, usize)| {
                         if i < n {
                             let next_conn = Arc::clone(&conn);
                             let fut = conn

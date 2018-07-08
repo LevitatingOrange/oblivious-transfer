@@ -1,11 +1,15 @@
 use super::{SymmetricDecryptor, SymmetricEncryptor};
 use errors::*;
-use futures::prelude::*;
+//use futures::prelude::*;
 use generic_array::{typenum::U32, GenericArray};
 use stdweb::unstable::TryInto;
 use stdweb::web::{ArrayBuffer, TypedArray};
 use stdweb::PromiseFuture;
 use stdweb::*;
+use futures_util::FutureExt;
+use futures_core::IntoFuture;
+//use futures::prelude::Future;
+use futures_core::Future;
 
 // TODO: add  this to an preloaded js file
 // window.crypto = window.crypto || window.msCrypto; //for IE11

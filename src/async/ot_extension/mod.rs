@@ -7,7 +7,7 @@
 //! It is trivial to implement 1-out-of-n OT with n 1-out-of-2 OTs.
 use bit_vec::BitVec;
 use errors::*;
-use futures::Future;
+use futures_core::Future;
 
 pub mod iknp;
 
