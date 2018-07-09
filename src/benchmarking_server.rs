@@ -29,7 +29,7 @@ use tungstenite::server::accept;
 
 use std::env::args;
 
-fn serve<T>(stream: T, n: usize, l: usize, comm_switch: bool)
+fn serve<T>(mut stream: T, n: usize, l: usize, comm_switch: bool)
 where
     T: BinarySend + BinaryReceive,
 {
@@ -43,6 +43,7 @@ where
         //println!("Generated random index: {:?}", choice);
         //println!("Creating BaseOT receiver...");
         //let mut now = Instant::now();
+        stream.send("sync".as_bytes()).unwrap();
         let mut ot_recv = ChouOrlandiOTReceiver::new(
             stream,
             SHA3_256::default(),
@@ -59,6 +60,7 @@ where
             .into_iter()
             .map(|s| s.into_bytes())
             .collect();
+        stream.send("sync".as_bytes()).unwrap();
         let mut ot = ChouOrlandiOTSender::new(
             stream,
             SHA3_256::default(),

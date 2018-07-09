@@ -53,6 +53,9 @@ fn conn_setup(n: usize, l: usize, is_ws: bool, role: &str) -> (TcpStream, Vec<Ve
     let mut rng = ChaChaRng::from_entropy();
     let dist = Range::new(0, n);
     let choice = rng.sample(dist);
+    if String::from_utf8(stream.receive().unwrap()).unwrap() != "sync" {
+        panic!("did not get sync");
+    }
     (stream, vals, choice, rng)
 }
 fn tcp_setup(n: usize, l: usize, role: &str) -> (TcpStream, Vec<Vec<u8>>, usize, ChaChaRng) {
