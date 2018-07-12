@@ -102,7 +102,7 @@ where
 }
 
 fn ot_native_send_benchmark(c: &mut Criterion) {
-    let n = 100;
+    let n = 2;
     let l = 64;
 
     let tcp_fun = Fun::new("TCP", move |b: &mut Bencher, _: &()| {
@@ -148,7 +148,7 @@ fn ot_native_send_benchmark(c: &mut Criterion) {
 }
 
 fn ot_native_receive_benchmark(c: &mut Criterion) {
-    let n = 100;
+    let n = 2;
     let l = 64;
 
     let tcp_fun = Fun::new("TCP", move |b: &mut Bencher, _: &()| {
