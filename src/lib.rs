@@ -36,11 +36,11 @@
 // #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 // extern crate futures;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+extern crate futures_channel;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 extern crate futures_core;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 extern crate futures_util;
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-extern crate futures_channel;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate ring;

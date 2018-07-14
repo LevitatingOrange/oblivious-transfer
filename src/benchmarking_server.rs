@@ -43,7 +43,7 @@ where
         //println!("Generated random index: {:?}", choice);
         //println!("Creating BaseOT receiver...");
         //let mut now = Instant::now();
-        stream.send("sync".as_bytes()).unwrap();
+        //stream.send("sync".as_bytes()).unwrap();
         let mut ot_recv = ChouOrlandiOTReceiver::new(
             stream,
             SHA3_256::default(),
@@ -60,7 +60,7 @@ where
             .into_iter()
             .map(|s| s.into_bytes())
             .collect();
-        stream.send("sync".as_bytes()).unwrap();
+        //stream.send("sync".as_bytes()).unwrap();
         let mut ot = ChouOrlandiOTSender::new(
             stream,
             SHA3_256::default(),
@@ -69,6 +69,46 @@ where
         ).unwrap();
         ot.send(strings.iter().map(|s| s.as_slice()).collect())
             .unwrap();
+    }
+}
+
+fn serve_ote<T>(mut stream: T, n: usize, l: usize, comm_switch: bool)
+where
+    T: BinarySend + BinaryReceive,
+{
+    let mut rng = ChaChaRng::from_entropy();
+
+    if comm_switch {
+        let choices = generate_random_choices(n);
+        let mut ot = ChouOrlandiOTSender::new(
+            stream,
+            SHA3_256::default(),
+            AesCryptoProvider::default(),
+            rng.clone(),
+        ).unwrap();
+
+        let mut ote = IKNPExtendedOTReceiver::new(SHA3_256::default(), ot, rng.clone(), 16).unwrap();
+        ote.receive(&choices).unwrap();
+    } else {
+        let strings: Vec<(Vec<u8>, Vec<u8>)> = generate_random_string_pairs(l, n)
+            .into_iter()
+            .map(|(s1, s2)| (s1.into_bytes(), s2.into_bytes()))
+            .collect();
+
+        let mut ot = ChouOrlandiOTReceiver::new(
+            stream,
+            SHA3_256::default(),
+            AesCryptoProvider::default(),
+            rng.clone(),
+        ).unwrap();
+
+        let mut ote = IKNPExtendedOTSender::new(SHA3_256::default(), ot, rng.clone(), 16).unwrap();
+        ote.send(
+            strings
+                .iter()
+                .map(|(s1, s2)| (s1.as_slice(), s1.as_slice()))
+                .collect(),
+        ).unwrap();
     }
 }
 
@@ -98,18 +138,29 @@ fn main() {
             let stream_switch =
                 &String::from_utf8(stream.receive().unwrap()).unwrap() == "websocket";
             let comm_switch = &String::from_utf8(stream.receive().unwrap()).unwrap() == "receive";
+            let iknp_switch = &String::from_utf8(stream.receive().unwrap()).unwrap() == "iknp";
 
             let bytes = stream.receive().unwrap();
             let n = read_u64_be(&bytes) as usize;
             let bytes = stream.receive().unwrap();
             let l = read_u64_be(&bytes) as usize;
 
-            if stream_switch {
-                // Websocket
-                serve(accept(stream).unwrap(), n, l, comm_switch);
+            if iknp_switch {
+                if stream_switch {
+                    // Websocket
+                    serve_ote(accept(stream).unwrap(), n, l, comm_switch);
+                } else {
+                    // Tcp
+                    serve_ote(stream, n, l, comm_switch);
+                }
             } else {
-                // Tcp
-                serve(stream, n, l, comm_switch);
+                if stream_switch {
+                    // Websocket
+                    serve(accept(stream).unwrap(), n, l, comm_switch);
+                } else {
+                    // Tcp
+                    serve(stream, n, l, comm_switch);
+                }
             }
 
             // println!("Creating BaseOT receiver...");

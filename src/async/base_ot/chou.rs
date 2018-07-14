@@ -10,11 +10,11 @@ use curve25519_dalek::scalar::*;
 /// TODO: make this parallel
 use errors::*;
 //use futures::prelude::*;
-use futures_core::Future;
-use futures_util::FutureExt;
-use futures_util::future::*;
 use futures_core::stream;
+use futures_core::Future;
+use futures_util::future::*;
 use futures_util::stream::*;
+use futures_util::FutureExt;
 //use futures::stream;
 use generic_array::{ArrayLength, GenericArray};
 use rand::{CryptoRng, RngCore};

@@ -239,7 +239,8 @@ mod tests {
     use sync::base_ot::{BaseOTReceiver, BaseOTSender};
     use sync::communication::corrupted::CorruptedChannel;
     use sync::crypto::{
-        aes::AesCryptoProvider, dummy::DummyCryptoProvider, //sodium::SodiumCryptoProvider,
+        aes::AesCryptoProvider,
+        dummy::DummyCryptoProvider, //sodium::SodiumCryptoProvider,
     };
     use tungstenite::client::connect;
     use tungstenite::server::accept;

@@ -5,11 +5,11 @@ use bit_vec::BitVec;
 use common::digest::ArbitraryDigest;
 use common::util::{bv_truncate, trunc_hash};
 use errors::*;
-use futures_core::Future;
-use futures_util::FutureExt;
-use futures_util::future::*;
 use futures_core::stream;
+use futures_core::Future;
+use futures_util::future::*;
 use futures_util::stream::*;
+use futures_util::FutureExt;
 use rand::{CryptoRng, Rng, RngCore};
 use std::sync::{Arc, Mutex};
 
