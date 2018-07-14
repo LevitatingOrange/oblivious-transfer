@@ -78,6 +78,7 @@ fn calculate_beaver_triple<'a, T>(
     conn: Arc<Mutex<T>>,
     a: GFElement,
     b: GFElement,
+    measurement: Arc<Mutex<[f64; 7]>>
 ) -> impl Future<Item = GFElement, Error = Error> + 'a
 where
     T: 'a + BinarySend + BinaryReceive,
@@ -97,32 +98,42 @@ where
     let rng = create_rng();
     print("Creating BaseOT sender...");
     let prev = Date::now();
+
     ChouOrlandiOTSender::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
-        .and_then(move |base_ot| {
+        .and_then(enclose! { (measurement) move |base_ot| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[0] = time;
             print(&format!(
                 "BaseOT sender creation took {}ms",
-                Date::now() - prev
+                time
             ));
             let rng = create_rng();
             print("Creating ExtendedOT receiver...");
             let prev = Date::now();
             IKNPExtendedOTReceiver::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
                 .map(move |e| (prev, e))
-        })
-        .and_then(enclose! { (choices) move |(prev, ext_ot)| {
-            print(&format!("ExtendedOT receiver creation took {}ms", Date::now() - prev));
+        }})
+        .and_then(enclose! { (choices, measurement) move |(prev, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[1] = time;
+            print(&format!("ExtendedOT receiver creation took {}ms", time));
             print("Receiving values...");
             let prev = Date::now();
             ext_ot.receive(choices).map(move |(qs, ext)| (prev, qs, ext))
         }})
-        .map(|(prev, qs, ext_ot)| {
-            print(&format!("ExtendedOT receive took {}ms", Date::now() - prev));
+        .map(enclose! { (measurement) move |(prev, qs, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[2] = time;
+            print(&format!("ExtendedOT receive took {}ms", time));
             let mut result = GFElement(0);
             for q in qs.into_iter().map(|e| GFElement::from_bytes(e)) {
                 result += q;
             }
             (result, ext_ot.get_conn())
-        })
+        }})
         .and_then(|(result, conn)| {
             let rng = create_rng();
             print("Creating BaseOT receiver...");
@@ -130,53 +141,65 @@ where
             ChouOrlandiOTReceiver::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
                 .map(move |e| (prev, result, e))
         })
-        .and_then(|(prev, result, base_ot)| {
+        .and_then(enclose! { (measurement) move |(prev, result, base_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[3] = time;
             print(&format!(
                 "BaseOT receiver creation took {}ms",
-                Date::now() - prev
+                time
             ));
             let rng = create_rng();
             print("Creating ExtendedOT sender...");
             let prev = Date::now();
             IKNPExtendedOTSender::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
                 .map(move |e| (prev, result, e))
-        })
-        .and_then(|(prev, result, ext_ot)| {
+        }})
+        .and_then(enclose! { (measurement) move |(prev, result, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[4] = time;
             print(&format!(
                 "ExtendedOT sender creation took {}ms",
-                Date::now() - prev
+                time
             ));
             print("sending values...");
             let prev = Date::now();
             ext_ot.send(pairs).map(move |e| (prev, result, e))
-        })
-        .map(move |(prev, recv_result, _)| {
-            print(&format!("ExtendedOT send took {}ms", Date::now() - prev));
+        }})
+        .map(enclose! { (measurement) move |(prev, recv_result, _)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[5] = time;
+            print(&format!("ExtendedOT send took {}ms", time));
             let mut send_result = GFElement(0);
             for t in ts.into_iter() {
                 send_result += t;
             }
             a * b + (-send_result) + recv_result
-        })
+        }})
 }
 
-fn start_computation(address: &str) {
+fn start_computation(address: &str) -> Arc<Mutex<[f64; 7]>> {
     let mut rng = create_rng();
     let a = GFElement::random(&mut rng);
     let b = GFElement::random(&mut rng);
     let whole = Date::now();
+
+    let measurement: Arc<Mutex<[f64; 7]>> = Arc::new(Mutex::new(Default::default()));
+
     let future = WebSocket::new_with_protocols(address, &["ot"])
         .into_future()
         .map_err(|e| Error::with_chain(e, "Could not establish connection"))
         .and_then(|socket| WasmWebSocket::open(socket))
-        .and_then(move |ws| calculate_beaver_triple(ws.clone(), a, b).map(|c| (c, ws)))
+        .and_then(enclose! { (measurement) move |ws| calculate_beaver_triple(ws.clone(), a, b, measurement).map(|c| (c, ws))})
         .and_then(move |(c, conn)| {
             print("values sent.");
             print("Getting share from server for verification...");
             let lock = conn.lock().unwrap();
             lock.receive().map(move |(_, shares)| (c, shares))
         })
-        .map(move |(c, shares)| {
+        .map(enclose! { (measurement) move |(c, shares)| {
             let other_a = GFElement::from_bytes(shares[..8].to_vec());
             let other_b = GFElement::from_bytes(shares[8..16].to_vec());
             let other_c = GFElement::from_bytes(shares[16..24].to_vec());
@@ -199,8 +222,11 @@ fn start_computation(address: &str) {
                 },
                 (other_c + c).0
             ));
-            print(&format!("Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took {}ms", Date::now() - whole))
-        })
+            let time = Date::now() - whole;
+            let mut lock = measurement.lock().unwrap();
+            lock[6] = time;
+            print(&format!("Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took {}ms", time))
+        }})
         .recover(|e| {
             error(&format!("{}", e.display_chain()));
             if let Some(ref backtrace) = e.backtrace() {
@@ -208,19 +234,39 @@ fn start_computation(address: &str) {
             }
         });
     PromiseFuture::spawn_local(future);
+    measurement
 }
 
 fn main() {
     stdweb::initialize();
-    let btn = document().query_selector("#gen-btn").unwrap().unwrap();
-    btn.add_event_listener(|_: ClickEvent| {
+    let gen_btn = document().query_selector("#gen-btn").unwrap().unwrap();
+    let log_btn = document().query_selector("#log-btn").unwrap().unwrap();
+
+    let measurements = Arc::new(Mutex::new(Vec::new()));
+
+    gen_btn.add_event_listener(enclose! { (measurements) move |_: ClickEvent| {
         let address_in: InputElement = document()
             .query_selector("#address-input")
             .unwrap()
             .unwrap()
             .try_into()
             .unwrap();
-        start_computation(&address_in.raw_value());
-    });
+        let measurement = start_computation(&address_in.raw_value());
+        let mut lock = measurements.lock().unwrap();
+        lock.push(measurement);
+    }});
+
+    log_btn.add_event_listener(enclose! { (measurements) move |_: ClickEvent| {
+        let lock = measurements.lock().unwrap();
+        for measurement in lock.iter() {
+            let lock = measurement.lock().unwrap();
+            let mut string = String::new();
+            for val in lock.iter() {
+                string.push_str(&val.to_string());
+                string.push(',');
+            }
+            console!(log, string);
+        }
+    }});
     stdweb::event_loop();
 }
