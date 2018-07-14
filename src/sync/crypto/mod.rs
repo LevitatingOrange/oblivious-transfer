@@ -9,7 +9,8 @@ use errors::*;
 use generic_array::{ArrayLength, GenericArray};
 pub mod aes;
 pub mod dummy;
-//pub mod sodium;
+#[cfg(feature = "sodium")]
+pub mod sodium;
 
 // TODO: is this a good interface? should there maybe be only one trait?
 
