@@ -23,7 +23,7 @@ path = "src/benchmarking_server.rs"
 
 [features]
 default = []
-rust_sodium = ["rust_sodium", "rust_sodium-sys"]
+sodium = ["rust_sodium", "rust_sodium-sys"]
 
 [target.wasm32-unknown-unknown.dependencies]
 stdweb = {version="0.4.7", features=["futures-support", "experimental_features_which_may_break_on_minor_version_bumps"]}
