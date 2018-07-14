@@ -35,6 +35,8 @@ where
 {
     let mut rng = ChaChaRng::from_entropy();
 
+
+
     if comm_switch {
         //println!("Bytes: {:?}", bytes);
         //println!("Length: {}", n);
@@ -130,10 +132,6 @@ fn main() {
         //     Ok(Some(extra_headers))
         // };
         spawn(move || {
-            //let values = generate_random_string_pairs(VALUE_LENGTH, VALUE_COUNT);
-            //println!("Generated values: {:?}", values);
-
-            //let stream = accept_hdr(stream.unwrap(), callback).unwrap();
             let mut stream = stream.unwrap();
             let stream_switch =
                 &String::from_utf8(stream.receive().unwrap()).unwrap() == "websocket";
@@ -162,54 +160,6 @@ fn main() {
                     serve(stream, n, l, comm_switch);
                 }
             }
-
-            // println!("Creating BaseOT receiver...");
-            // let mut now = Instant::now();
-            // let ot_recv = ChouOrlandiOTReceiver::new(
-            //     stream.unwrap(),
-            //     SHA3_256::default(),
-            //     AesCryptoProvider::default(),
-            //     rng.clone(),
-            // ).unwrap();
-            // println!("chou ot receiver creation took {:?}", now.elapsed());
-            // println!("Creating OTExtension sender...");
-            // now = Instant::now();
-            // let mut ot_ext_send =
-            //     IKNPExtendedOTSender::new(SHA3_256::default(), ot_recv, rng.clone(), SECURITY_PARAM)
-            //         .unwrap();
-            // println!("IKNP sender creation took {:?}", now.elapsed());
-            // println!("Sending values...");
-            // now = Instant::now();
-            // let values: Vec<(&[u8], &[u8])> = values
-            //     .iter()
-            //     .map(|(s1, s2)| (s1.as_bytes(), s2.as_bytes()))
-            //     .collect();
-            // ot_ext_send.send(values).unwrap();
-            // println!("IKNP send took {:?}", now.elapsed());
-
-            // rng = ChaChaRng::from_entropy();
-
-            // println!("Creating BaseOT sender...");
-            // now = Instant::now();
-            // let ot_send = ChouOrlandiOTSender::new(
-            //     ot_ext_send.get_conn(),
-            //     SHA3_256::default(),
-            //     AesCryptoProvider::default(),
-            //     rng.clone(),
-            // ).unwrap();
-            // println!("chou ot sender creation took {:?}", now.elapsed());
-            // now = Instant::now();
-            // let mut ot_ext_recv =
-            //     IKNPExtendedOTReceiver::new(SHA3_256::default(), ot_send, rng.clone(), SECURITY_PARAM)
-            //         .unwrap();
-            // println!("IKNP receiver creation took {:?}", now.elapsed());
-            // now = Instant::now();
-            // let values = ot_ext_recv.receive(&choice_bits).unwrap();
-            // println!("IKNP send took {:?}", now.elapsed());
-            // let zipped: Vec<(bool, String)> = choice_bits.iter().zip(values.into_iter().map(|s| String::from_utf8(s).unwrap())).collect();
-            // println!("Received values: {:?}", zipped);
-
-            //println!("{:?}", sender.compute_keys(10));
         });
     }
 }

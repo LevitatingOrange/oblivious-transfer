@@ -12,11 +12,11 @@ use ot::sync::crypto::aes::AesCryptoProvider;
 use ot::sync::ot_extension::iknp::{IKNPExtendedOTReceiver, IKNPExtendedOTSender};
 use ot::sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
 use rand::{ChaChaRng, FromEntropy};
+use std::env;
 use std::net::TcpListener;
 use std::thread::spawn;
 use tungstenite::handshake::server::Request;
 use tungstenite::server::accept_hdr;
-use std::env;
 
 use std::time::Instant;
 

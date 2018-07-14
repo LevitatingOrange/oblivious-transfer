@@ -38,12 +38,20 @@ use criterion::Bencher;
 use criterion::Criterion;
 use criterion::Fun;
 
+use std::time::Duration;
+use std::thread::sleep;
+
 fn conn_setup_ot(
     n: usize,
     l: usize,
     is_ws: bool,
     role: &str,
 ) -> (TcpStream, Vec<Vec<u8>>, usize, ChaChaRng) {
+
+    // protocol too fast, messes up port opening
+    let millis = Duration::from_millis(1);
+    sleep(millis);
+
     let mut stream = TcpStream::connect("127.0.0.1:8123").unwrap();
     let conn_type = if is_ws { "websocket" } else { "tcp" };
 

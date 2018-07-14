@@ -78,7 +78,7 @@ fn calculate_beaver_triple<'a, T>(
     conn: Arc<Mutex<T>>,
     a: GFElement,
     b: GFElement,
-    measurement: Arc<Mutex<[f64; 7]>>
+    measurement: Arc<Mutex<[f64; 7]>>,
 ) -> impl Future<Item = GFElement, Error = Error> + 'a
 where
     T: 'a + BinarySend + BinaryReceive,
@@ -180,7 +180,7 @@ where
         }})
 }
 
-fn start_computation(address: &str) -> Arc<Mutex<[f64; 7]>> {
+fn start_computation(address: String, num: u32, mut measurements: Vec<Arc<Mutex<[f64; 7]>>>) {
     let mut rng = create_rng();
     let a = GFElement::random(&mut rng);
     let b = GFElement::random(&mut rng);
@@ -188,7 +188,7 @@ fn start_computation(address: &str) -> Arc<Mutex<[f64; 7]>> {
 
     let measurement: Arc<Mutex<[f64; 7]>> = Arc::new(Mutex::new(Default::default()));
 
-    let future = WebSocket::new_with_protocols(address, &["ot"])
+    let future = WebSocket::new_with_protocols(&address, &["ot"])
         .into_future()
         .map_err(|e| Error::with_chain(e, "Could not establish connection"))
         .and_then(|socket| WasmWebSocket::open(socket))
@@ -223,9 +223,25 @@ fn start_computation(address: &str) -> Arc<Mutex<[f64; 7]>> {
                 (other_c + c).0
             ));
             let time = Date::now() - whole;
+            {
             let mut lock = measurement.lock().unwrap();
             lock[6] = time;
-            print(&format!("Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took {}ms", time))
+            }
+            print(&format!("Whole protocol (incl. WebSocket creation, verification and waiting for entropy for various rngs) took {}ms", time));
+            measurements.push(measurement);
+            if num > 0 {
+                start_computation(address, num-1, measurements);
+            } else {
+                for measurement in measurements.iter() {
+                    let lock = measurement.lock().unwrap();
+                    let mut string = String::new();
+                    for val in lock.iter() {
+                        string.push_str(&val.to_string());
+                        string.push(',');
+                    }
+                    console!(log, string);
+                }
+            }
         }})
         .recover(|e| {
             error(&format!("{}", e.display_chain()));
@@ -234,39 +250,31 @@ fn start_computation(address: &str) -> Arc<Mutex<[f64; 7]>> {
             }
         });
     PromiseFuture::spawn_local(future);
-    measurement
 }
 
 fn main() {
     stdweb::initialize();
     let gen_btn = document().query_selector("#gen-btn").unwrap().unwrap();
-    let log_btn = document().query_selector("#log-btn").unwrap().unwrap();
 
-    let measurements = Arc::new(Mutex::new(Vec::new()));
-
-    gen_btn.add_event_listener(enclose! { (measurements) move |_: ClickEvent| {
+    gen_btn.add_event_listener(move |_: ClickEvent| {
         let address_in: InputElement = document()
             .query_selector("#address-input")
             .unwrap()
             .unwrap()
             .try_into()
             .unwrap();
-        let measurement = start_computation(&address_in.raw_value());
-        let mut lock = measurements.lock().unwrap();
-        lock.push(measurement);
-    }});
+        let num_in: InputElement = document()
+            .query_selector("#num-input")
+            .unwrap()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        start_computation(
+            address_in.raw_value(),
+            num_in.raw_value().parse().unwrap(),
+            Vec::new(),
+        );;
+    });
 
-    log_btn.add_event_listener(enclose! { (measurements) move |_: ClickEvent| {
-        let lock = measurements.lock().unwrap();
-        for measurement in lock.iter() {
-            let lock = measurement.lock().unwrap();
-            let mut string = String::new();
-            for val in lock.iter() {
-                string.push_str(&val.to_string());
-                string.push(',');
-            }
-            console!(log, string);
-        }
-    }});
     stdweb::event_loop();
 }
