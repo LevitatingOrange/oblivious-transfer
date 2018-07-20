@@ -26,7 +26,7 @@ default = []
 sodium = ["rust_sodium", "rust_sodium-sys"]
 
 [target.wasm32-unknown-unknown.dependencies]
-stdweb = {version="0.4.7", features=["futures-support", "experimental_features_which_may_break_on_minor_version_bumps"]}
+stdweb = {version="0.4.8", features=["futures-support", "experimental_features_which_may_break_on_minor_version_bumps"]}
 rand = {version="0.5.0", features=["stdweb"]}
 #futures-preview = "0.2.2"
 futures-util = "0.2.1"
@@ -47,7 +47,6 @@ tungstenite = "0.5.3"
 #rand = {git = "https://github.com/aochagavia/rand"}
 rand = "0.5.0"
 # interestingly u32_backend is the fastest, might talk to project owners about this?
-curve25519-dalek = {version = "0.18", features = ["avx2_backend", "std"], default-features = false}
 tiny-keccak = "1.4.2"
 error-chain = "0.11.0"
 generic-array = "0.9.0"
@@ -58,6 +57,8 @@ bit-vec = "0.5.0"
 itertools = "0.7.8"
 byte-tools = "0.2.0"
 #futures-await = "0.2.0-alpha"
+curve25519-dalek = {version = "0.18", features = ["avx2_backend", "std"], default-features = false}
+
 
 #block_cipher_trait = "0.5.0"
 

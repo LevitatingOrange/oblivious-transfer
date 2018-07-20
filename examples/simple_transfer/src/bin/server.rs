@@ -19,8 +19,8 @@ use std::time::Instant;
 
 fn main() {
     const SECURITY_PARAM: usize = 16;
-    const VALUE_COUNT: usize = 10;
-    const VALUE_LENGTH: usize = 5;
+    const VALUE_COUNT: usize = 1000;
+    const VALUE_LENGTH: usize = 64;
 
     let server = TcpListener::bind("127.0.0.1:3012").unwrap();
     for stream in server.incoming() {
@@ -39,7 +39,7 @@ fn main() {
         spawn(move || {
             let values = generate_random_string_pairs(VALUE_LENGTH, VALUE_COUNT);
             let choice_bits = generate_random_choices(VALUE_COUNT);
-            println!("Generated values: {:?}", values);
+            //println!("Generated values: {:?}", values);
 
             let stream = accept_hdr(stream.unwrap(), callback).unwrap();
             let mut rng = ChaChaRng::from_entropy();
@@ -88,7 +88,7 @@ fn main() {
             let values = ot_ext_recv.receive(&choice_bits).unwrap();
             println!("IKNP send took {:?}", now.elapsed());
             let zipped: Vec<(bool, String)> = choice_bits.iter().zip(values.into_iter().map(|s| String::from_utf8(s).unwrap())).collect();
-            println!("Received values: {:?}", zipped);
+            //println!("Received values: {:?}", zipped);
 
             //println!("{:?}", sender.compute_keys(10));
         });

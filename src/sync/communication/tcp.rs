@@ -11,8 +11,8 @@ use std::vec::Vec;
 impl BinarySend for TcpStream {
     fn send(&mut self, data: &[u8]) -> Result<()> {
         let bytes: [u8; 8] = unsafe { transmute((data.len() as u64).to_be()) };
-        self.write(&bytes)?;
-        self.write(data)?;
+        self.write_all(&bytes)?;
+        self.write_all(data)?;
         self.flush()?;
         Ok(())
     }

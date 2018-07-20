@@ -25,7 +25,7 @@ where
     buf.copy_from_slice(&v);
     CompressedEdwardsY(buf)
         .decompress()
-        .ok_or(ErrorKind::PointError.into())
+        .ok_or_else(|| ErrorKind::PointError.into())
 }
 
 fn send_point<T>(conn: &mut T, p: EdwardsPoint) -> Result<()>
@@ -87,10 +87,10 @@ impl<
         s = s.mul_by_cofactor();
         hasher.input(s.compress().as_bytes());
         Ok(ChouOrlandiOTSender {
-            conn: conn,
-            hasher: hasher,
-            encryptor: encryptor,
-            y: y,
+            conn,
+            hasher,
+            encryptor,
+            y,
             t64: (y * s).mul_by_cofactor(),
         })
     }
@@ -167,10 +167,10 @@ impl<
         s = s.mul_by_cofactor();
         hasher.input(s.compress().as_bytes());
         Ok(ChouOrlandiOTReceiver {
-            conn: conn,
-            hasher: hasher,
-            decryptor: decryptor,
-            rng: rng,
+            conn,
+            hasher,
+            decryptor,
+            rng,
             s8: s,
         })
     }

@@ -23,7 +23,7 @@
 //! composing it with the OT extension of Asharaov will *not* provide security against active adversaries.
 
 #![recursion_limit = "1024"]
-#![feature(proc_macro, generators)]
+#![feature(generators)]
 #![feature(iterator_flatten)]
 #![feature(int_to_from_bytes)]
 #![feature(iterator_repeat_with)]

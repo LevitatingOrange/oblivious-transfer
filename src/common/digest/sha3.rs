@@ -20,7 +20,7 @@ impl Digest for SHA3_256 {
     fn result(self) -> GenericArray<u8, Self::OutputSize> {
         let mut arr: GenericArray<u8, Self::OutputSize> = Default::default();
         self.0.finalize(&mut arr);
-        return arr;
+         arr
     }
 }
 
@@ -32,6 +32,6 @@ impl ArbitraryDigest for SHA3_256 {
         let mut vec = Vec::with_capacity(output_size);
         vec.resize(output_size, 0);
         self.0.finalize(&mut vec);
-        return vec;
+        vec
     }
 }

@@ -24,7 +24,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> GetConn<T>
     for IKNPExtendedOTReceiver<T, A>
 {
     fn get_conn(self) -> T {
-        return self.conn;
+        self.conn
     }
 }
 
@@ -53,9 +53,9 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTRe
             initial_pairs.push((k0, k1));
         }
         Ok(IKNPExtendedOTReceiver {
-            arbitrary_hasher: arbitrary_hasher,
+            arbitrary_hasher,
             conn: base_ot_sender.get_conn(),
-            initial_pairs: initial_pairs,
+            initial_pairs,
         })
     }
 }
@@ -99,8 +99,8 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTReceiv
                 "String pairs do not have same size"
             );
             let mut bt = BitVec::with_capacity(l);
-            for j in 0..l {
-                bt.push(t_mat[j][i]);
+            for t in &t_mat {
+                bt.push(t[i]);
             }
             let mut hasher = self.arbitrary_hasher.clone();
             hasher.input(&(i as u64).to_bytes());
@@ -133,7 +133,7 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> GetConn<T>
     for IKNPExtendedOTSender<T, A>
 {
     fn get_conn(self) -> T {
-        return self.conn;
+        self.conn
     }
 }
 
@@ -159,9 +159,9 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> IKNPExtendedOTSe
         }
         Ok(IKNPExtendedOTSender {
             conn: base_ot_receiver.get_conn(),
-            arbitrary_hasher: arbitrary_hasher,
-            initial: initial,
-            random_choices: random_choices,
+            arbitrary_hasher,
+            initial,
+            random_choices,
         })
     }
 }
@@ -201,8 +201,8 @@ impl<T: BinaryReceive + BinarySend, A: ArbitraryDigest + Clone> ExtendedOTSender
             let n = values[i].0.len();
             assert_eq!(n, values[i].1.len(), "String pairs do not have same size");
             let mut qt = BitVec::with_capacity(l);
-            for j in 0..l {
-                qt.push(q_mat[j][i]);
+            for q in &q_mat {
+                qt.push(q[i]);
             }
             let mut hasher = self.arbitrary_hasher.clone();
             hasher.input(&(i as u64).to_bytes());

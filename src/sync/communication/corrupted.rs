@@ -26,7 +26,7 @@ impl<S: Default, C: BinaryReceive + BinarySend> CorruptedChannel<S, C> {
     pub fn default(conn: C) -> Self {
         CorruptedChannel {
             state: S::default(),
-            conn: conn,
+            conn,
             eavesdropper: empty_eavesdropper,
             corruptor: empty_corruptor,
         }
@@ -36,8 +36,8 @@ impl<S: Default, C: BinaryReceive + BinarySend> CorruptedChannel<S, C> {
     pub fn new_eavesdrop(conn: C, initial_state: S, eavesdropper: fn(&mut S, &[u8])) -> Self {
         CorruptedChannel {
             state: initial_state,
-            conn: conn,
-            eavesdropper: eavesdropper,
+            conn,
+            eavesdropper,
             corruptor: empty_corruptor,
         }
     }
@@ -46,9 +46,9 @@ impl<S: Default, C: BinaryReceive + BinarySend> CorruptedChannel<S, C> {
     pub fn new_corrupt(conn: C, initial_state: S, corruptor: fn(&mut S, &mut [u8])) -> Self {
         CorruptedChannel {
             state: initial_state,
-            conn: conn,
+            conn,
             eavesdropper: empty_eavesdropper,
-            corruptor: corruptor,
+            corruptor,
         }
     }
 
@@ -60,9 +60,9 @@ impl<S: Default, C: BinaryReceive + BinarySend> CorruptedChannel<S, C> {
     ) -> Self {
         CorruptedChannel {
             state: initial_state,
-            conn: conn,
-            eavesdropper: eavesdropper,
-            corruptor: corruptor,
+            conn,
+            eavesdropper,
+            corruptor,
         }
     }
 }

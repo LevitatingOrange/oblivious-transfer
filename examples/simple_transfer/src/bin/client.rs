@@ -11,6 +11,7 @@ extern crate tiny_keccak;
 use error_chain::ChainedError;
 use futures_core::IntoFuture;
 use futures_util::future::*;
+use futures_core::Future;
 use ot::async::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
 //use ot::async::base_ot::{BaseOTReceiver, BaseOTSender};
 use ot::async::communication::websockets::*;
@@ -28,6 +29,13 @@ use stdweb::web::WebSocket;
 use std::result;
 use std::string;
 use stdweb::PromiseFuture;
+use stdweb::web::Date;
+use std::sync::{Arc, Mutex};
+
+const SECURITY_PARAM: usize = 16;
+const VALUE_COUNT: usize = 1000;
+const VALUE_LENGTH: usize = 64;
+const EXTRA_COMPUTATIONS: usize = 99;
 
 fn create_rng() -> ChaChaRng {
     let seed: TypedArray<u8> = js!{
@@ -41,15 +49,9 @@ fn create_rng() -> ChaChaRng {
     ChaChaRng::from_seed(seed_arr)
 }
 
-fn main() {
-    stdweb::initialize();
-
-    const SECURITY_PARAM: usize = 16;
-    const VALUE_COUNT: usize = 10;
-    const VALUE_LENGTH: usize = 5;
-
+fn start_computation(num: usize, mut measurements: Vec<Arc<Mutex<[f64; 6]>>>) {
     let choices = generate_random_choices(VALUE_COUNT);
-
+    let measurement: Arc<Mutex<[f64; 6]>> = Arc::new(Mutex::new(Default::default()));
     console!(log, "Opening WebSocket...");
     let future = WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])
         .into_future()
@@ -59,59 +61,120 @@ fn main() {
             console!(log, "WebSocket opened.");
             let rng = create_rng();
             console!(log, "Creating BaseOT sender...");
-            ChouOrlandiOTSender::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng)
+            let prev = Date::now();
+            ChouOrlandiOTSender::new(ws, SHA3_256::default(), AesCryptoProvider::default(), rng).map(move |e| (prev, e))
         })
-        .and_then(|base_ot| {
-            console!(log, "BaseOT sender created.");
+        .and_then(enclose! { (measurement) move |(prev, base_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[0] = time;
+            console!(log, "{}", &format!(
+                "BaseOT sender creation took {}ms",
+                time
+            ));
             let rng = create_rng();
             console!(log, "Creating ExtendedOT receiver...");
-            IKNPExtendedOTReceiver::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
-        })
-        .and_then(enclose! { (choices) move |ext_ot| {
-            console!(log, "ExtendedOT receiver created.");
-            console!(log, "Receiving values...");
-            ext_ot.receive(choices)
+            let prev = Date::now();
+            IKNPExtendedOTReceiver::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM).map(move |e| (prev, e))
         }})
-        .and_then(|(vals, ext_ot)| {
-            let strings: result::Result<Vec<String>, string::FromUtf8Error> =
-                vals.into_iter().map(|s| String::from_utf8(s)).collect();
-            strings
-                .map(|strings| (strings, ext_ot.get_conn()))
-                .map_err(|e| Error::with_chain(e, "Error while parsing String"))
-        })
-        .and_then(enclose! { (choices) move |(vals, conn)| {
-            let zipped: Vec<(bool, String)> = choices.iter().zip(vals).collect();
-            let s = format!("Received values: {:?}", zipped);
-            console!(log, s);
+        .and_then(enclose! { (measurement, choices) move |(prev, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[1] = time;
+            console!(log, "{}", &format!(
+                "ExtendedOT receiver creation took {}ms",
+                time
+            ));
+            console!(log, "Receiving values...");
+            let prev = Date::now();
+            ext_ot.receive(choices).map(move |(e, d)| (prev, e, d))
+        }})
+        .map(enclose! { (measurement) move |(prev, _, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[2] = time;
+            console!(log, "{}", &format!(
+                "ExtOT Receiver took {}ms",
+                time
+            ));            
+            ext_ot.get_conn()
+        }})
+        .and_then(move |conn| {
             let rng = create_rng();
             console!(log, "Creating BaseOT receiver...");
-            ChouOrlandiOTReceiver::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng)
-        }})
-        .and_then(|base_ot| {
-            console!(log, "BaseOT receiver created.");
+            let prev = Date::now();
+            ChouOrlandiOTReceiver::new(conn, SHA3_256::default(), AesCryptoProvider::default(), rng).map(move |e| (prev, e))
+        })
+        .and_then(enclose! { (measurement) move |(prev, base_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[3] = time;
+            console!(log, "{}", &format!(
+                "BaseOT Receiver creation took {}ms",
+                time
+            ));             
             let rng = create_rng();
             console!(log, "Creating ExtendedOT sender...");
-            IKNPExtendedOTSender::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM)
-        })
-        .and_then(move |ext_ot| {
-            console!(log, "ExtendedOT sender created.");
+            let prev = Date::now();
+            IKNPExtendedOTSender::new(SHA3_256::default(), base_ot, rng, SECURITY_PARAM).map(move |e| (prev, e))
+        }})
+        .and_then(enclose! { (measurement) move |(prev, ext_ot)| {
+            let time = Date::now() - prev;
+            let mut lock = measurement.lock().unwrap();
+            lock[4] = time;
+            console!(log, "{}", &format!(
+                "ExtendedOT Receiver creation took {}ms",
+                time
+            ));                   
             let values = generate_random_string_pairs(VALUE_LENGTH, VALUE_COUNT);
-            let s = format!("Values: {:?}", values);
-            console!(log, s);
             console!(log, "sending values...");
+            let prev = Date::now();
             ext_ot.send(values.into_iter()
                 .map(|(s1, s2)| (s1.into_bytes(), s2.into_bytes()))
-                .collect())
-        })
-        .map(move |_| {
-            console!(log, "values sent.");
-        })
+                .collect()).map(move |e| (prev, e))
+        }})
+        .map(enclose! { (measurement) move |(prev, _)| {
+            let time = Date::now() - prev;
+            {
+            let mut lock = measurement.lock().unwrap();
+            lock[5] = time;
+            }
+            console!(log, "{}", &format!(
+                "ExtendedOT Sender took {}ms",
+                time
+            ));
+            measurements.push(measurement);
+            if num > 0 {
+                start_computation(num - 1, measurements);
+            } else {
+                for measurement in measurements.iter() {
+                    let lock = measurement.lock().unwrap();
+                    let mut string = String::new();
+                    for val in lock.iter() {
+                        string.push_str(&val.to_string());
+                        string.push(',');
+                    }
+                    string.push_str(&(lock[0] + lock[1] + lock[2]).to_string());
+                    string.push(',');
+                    string.push_str(&(lock[1] + lock[2] + lock[3]).to_string());
+                    string.push(',');
+                    console!(log, string);
+                }
+            }
+        }})
         .recover(|e| {
-            console!(error, format!("{}", e.display_chain()));
+            //console!(error, format!("{}", e.display_chain()));
             if let Some(ref backtrace) = e.backtrace() {
                 console!(error, format!("Backtrace: {:?}", backtrace));
             }
         });
     PromiseFuture::spawn_local(future);
+}
+
+fn main() {
+    stdweb::initialize();
+
+    start_computation(EXTRA_COMPUTATIONS, Vec::with_capacity(EXTRA_COMPUTATIONS + 1));
+
     stdweb::event_loop();
 }
