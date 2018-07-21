@@ -156,7 +156,7 @@ fn start_computation(num: usize, mut measurements: Vec<Arc<Mutex<[f64; 6]>>>) {
                     }
                     string.push_str(&(lock[0] + lock[1] + lock[2]).to_string());
                     string.push(',');
-                    string.push_str(&(lock[1] + lock[2] + lock[3]).to_string());
+                    string.push_str(&(lock[3] + lock[4] + lock[5]).to_string());
                     string.push(',');
                     console!(log, string);
                 }
