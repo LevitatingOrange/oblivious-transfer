@@ -49,7 +49,7 @@ fn conn_setup_ot(
 ) -> (TcpStream, Vec<Vec<u8>>, usize, ChaChaRng) {
 
     // protocol too fast, messes up port opening
-    let millis = Duration::from_millis(1);
+    let millis = Duration::from_millis(2);
     sleep(millis);
 
     let mut stream = TcpStream::connect("127.0.0.1:8123").unwrap();
@@ -325,16 +325,16 @@ fn ot_native_receive_benchmark(c: &mut Criterion) {
             )
         },
     );
-    // c.bench_function_over_inputs(
-    //     &format!("SimpleOT Receiver n, l={}", l),
-    //     move |b, &&growing_n| {
-    //         b.iter_with_setup(
-    //             move || tcp_setup(growing_n, l, "receive"),
-    //             |t| simple_ot_receive(t, true),
-    //         )
-    //     },
-    //     &[10, 100, 1000, 10000],
-    // );
+    c.bench_function_over_inputs(
+        &format!("SimpleOT Receiver n, l={}", l),
+        move |b, &&growing_n| {
+            b.iter_with_setup(
+                move || tcp_setup_ot(growing_n, l, "receive"),
+                |t| simple_ot_receive(t, true),
+            )
+        },
+        &[10, 100, 1000],
+    );
     c.bench_function_over_inputs(
         &format!("SimpleOT Receiver TCP n={}, l", n),
         move |b, &&growing_l| {
@@ -369,18 +369,19 @@ fn ote_native_send_benchmark(c: &mut Criterion) {
 
     c.bench_functions(&format!("IKNP OTe Sender n={},l={}", n, l), funs, ());
 
-    // c.bench_function(
-    //     &format!("SimpleOT Sender TCP n={},l={} Setup Only", n, l),
-    //     move |b| {
-    //         b.iter_with_setup(
-    //             move || tcp_setup_ot(n, l, "receive"),
-    //             |t| simple_ot_send(t, false),
-    //         )
-    //     },
-    // );
-    // // c.bench_function_over_inputs(&format!("ot_native_tcp_n_{}", l), move |b, &&growing_n| {
-    // //     b.iter_with_setup(move || tcp_setup(growing_n, l, "receive"), |t| simple_ot_receive(t, true))
-    // // }, &[10, 100, 1000, 10000]);
+    c.bench_function(
+        &format!("SimpleOT Sender TCP n={},l={} Setup Only", n, l),
+        move |b| {
+            b.iter_with_setup(
+                move || tcp_setup_ot(n, l, "receive"),
+                |t| simple_ot_send(t, false),
+            )
+        },
+    );
+    c.bench_function_over_inputs(&format!("ot_native_tcp_n_{}", l), move |b, &&growing_n| {
+        b.iter_with_setup(move || tcp_setup_ot(growing_n, l, "receive"), |t| simple_ot_receive(t, true))
+    }, &[10, 100, 1000]);
+
     // c.bench_function_over_inputs(
     //     &format!("SimpleOT Sender TCP n={}, l", n),
     //     move |b, &&growing_l| {
@@ -448,9 +449,9 @@ fn ote_native_receive_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    //ot_native_send_benchmark,
-    //ot_native_receive_benchmark,
-    ote_native_send_benchmark,
-    ote_native_receive_benchmark
+    ot_native_send_benchmark,
+    ot_native_receive_benchmark,
+    // ote_native_send_benchmark,
+    // ote_native_receive_benchmark
 );
 criterion_main!(benches);

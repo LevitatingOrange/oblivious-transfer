@@ -3,10 +3,10 @@ extern crate rand;
 extern crate tungstenite;
 
 use ot::common::digest::sha3::SHA3_256;
-use ot::common::util::{generate_random_string_pairs, generate_random_choices};
+use ot::common::util::{generate_random_choices, generate_random_string_pairs};
 use ot::sync::base_ot::chou::{ChouOrlandiOTReceiver, ChouOrlandiOTSender};
-use ot::sync::crypto::aes::AesCryptoProvider;
 use ot::sync::communication::GetConn;
+use ot::sync::crypto::aes::AesCryptoProvider;
 use ot::sync::ot_extension::iknp::{IKNPExtendedOTReceiver, IKNPExtendedOTSender};
 use ot::sync::ot_extension::{ExtendedOTReceiver, ExtendedOTSender};
 use rand::{ChaChaRng, FromEntropy};
@@ -55,9 +55,12 @@ fn main() {
             println!("chou ot receiver creation took {:?}", now.elapsed());
             println!("Creating OTExtension sender...");
             now = Instant::now();
-            let mut ot_ext_send =
-                IKNPExtendedOTSender::new(SHA3_256::default(), ot_recv, rng.clone(), SECURITY_PARAM)
-                    .unwrap();
+            let mut ot_ext_send = IKNPExtendedOTSender::new(
+                SHA3_256::default(),
+                ot_recv,
+                rng.clone(),
+                SECURITY_PARAM,
+            ).unwrap();
             println!("IKNP sender creation took {:?}", now.elapsed());
             println!("Sending values...");
             now = Instant::now();
@@ -80,14 +83,20 @@ fn main() {
             ).unwrap();
             println!("chou ot sender creation took {:?}", now.elapsed());
             now = Instant::now();
-            let mut ot_ext_recv =
-                IKNPExtendedOTReceiver::new(SHA3_256::default(), ot_send, rng.clone(), SECURITY_PARAM)
-                    .unwrap();
+            let mut ot_ext_recv = IKNPExtendedOTReceiver::new(
+                SHA3_256::default(),
+                ot_send,
+                rng.clone(),
+                SECURITY_PARAM,
+            ).unwrap();
             println!("IKNP receiver creation took {:?}", now.elapsed());
             now = Instant::now();
             let values = ot_ext_recv.receive(&choice_bits).unwrap();
             println!("IKNP send took {:?}", now.elapsed());
-            let zipped: Vec<(bool, String)> = choice_bits.iter().zip(values.into_iter().map(|s| String::from_utf8(s).unwrap())).collect();
+            let zipped: Vec<(bool, String)> = choice_bits
+                .iter()
+                .zip(values.into_iter().map(|s| String::from_utf8(s).unwrap()))
+                .collect();
             //println!("Received values: {:?}", zipped);
 
             //println!("{:?}", sender.compute_keys(10));
