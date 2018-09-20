@@ -38,8 +38,8 @@ use criterion::Bencher;
 use criterion::Criterion;
 use criterion::Fun;
 
-use std::time::Duration;
 use std::thread::sleep;
+use std::time::Duration;
 
 fn conn_setup_ot(
     n: usize,
@@ -47,7 +47,6 @@ fn conn_setup_ot(
     is_ws: bool,
     role: &str,
 ) -> (TcpStream, Vec<Vec<u8>>, usize, ChaChaRng) {
-
     // protocol too fast, messes up port opening
     let millis = Duration::from_millis(2);
     sleep(millis);
@@ -241,8 +240,7 @@ where
                         .iter()
                         .map(|(s1, s2)| (s1.as_slice(), s2.as_slice()))
                         .collect(),
-                )
-                .unwrap(),
+                ).unwrap(),
         );
     }
     //println!("chou ot receiver creation");
@@ -378,9 +376,16 @@ fn ote_native_send_benchmark(c: &mut Criterion) {
             )
         },
     );
-    c.bench_function_over_inputs(&format!("ot_native_tcp_n_{}", l), move |b, &&growing_n| {
-        b.iter_with_setup(move || tcp_setup_ot(growing_n, l, "receive"), |t| simple_ot_receive(t, true))
-    }, &[10, 100, 1000]);
+    c.bench_function_over_inputs(
+        &format!("ot_native_tcp_n_{}", l),
+        move |b, &&growing_n| {
+            b.iter_with_setup(
+                move || tcp_setup_ot(growing_n, l, "receive"),
+                |t| simple_ot_receive(t, true),
+            )
+        },
+        &[10, 100, 1000],
+    );
 
     // c.bench_function_over_inputs(
     //     &format!("SimpleOT Sender TCP n={}, l", n),
