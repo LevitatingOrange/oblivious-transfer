@@ -7,8 +7,12 @@ publish = false
 edition = "2018"
 
 [[bin]]
-name = "ot"
-path = "src/bin.rs"
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
 
 [lib]
 #TODO make lib work with web crate

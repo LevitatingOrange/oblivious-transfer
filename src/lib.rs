@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, futures_api, pin)]
+#![feature(async_await, await_macro, futures_api, pin, arbitrary_self_types)]
 #![recursion_limit="128"]
 
 pub mod base_ot;

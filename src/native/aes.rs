@@ -35,10 +35,10 @@ impl AesCryptoProvider {
 }
 
 impl SymmetricCryptoProvider<U32> for AesCryptoProvider {
-    fn encrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>> {
+    fn encrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>> {
         ready(self.encrypt_inner(key, data)).boxed()
     }
-    fn decrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>> {
+    fn decrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>> {
         ready(self.decrypt_inner(key, data)).boxed()
     }
 }

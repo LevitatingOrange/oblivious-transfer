@@ -17,8 +17,8 @@ pub trait SymmetricCryptoProvider<E>
 where
     E: ArrayLength<u8>,
 {
-    fn encrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>>;
-    fn decrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>>;
+    fn encrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>>;
+    fn decrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>>;
 }
 
 
