@@ -6,6 +6,7 @@
 use failure::Fallible;
 use futures::future::Future;
 use generic_array::{ArrayLength, GenericArray};
+use std::pin::Pin;
 
 pub mod sha3;
 
@@ -16,9 +17,8 @@ pub trait SymmetricCryptoProvider<E>
 where
     E: ArrayLength<u8>,
 {
-    type CryptReturn: Future<Output=Fallible<Vec<u8>>>;
-    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Self::CryptReturn;
-    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Self::CryptReturn;
+    fn encrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>>;
+    fn decrypt(self, key: GenericArray<u8, E>, data: Vec<u8>) -> Pin<Box<Future<Output=Fallible<Vec<u8>>>>>;
 }
 
 

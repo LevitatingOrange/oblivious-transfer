@@ -35,7 +35,7 @@ pub struct SimpleOTSender<T, D, L, S> where
 T: AsyncRead + AsyncReadExt + AsyncWrite + AsyncWriteExt,
 D: Digest<OutputSize = L> + Clone,
 L: ArrayLength<u8>,
-S: SymmetricCryptoProvider<L> {
+S: SymmetricCryptoProvider<L> + Clone + Copy {
     pub conn: T,
     hasher: D,
     crypt: S,
@@ -47,7 +47,7 @@ impl<
 T: AsyncRead + AsyncReadExt + AsyncWrite + AsyncWriteExt,
 D: Digest<OutputSize = L> + Clone,
 L: ArrayLength<u8>,
-S: SymmetricCryptoProvider<L>
+S: SymmetricCryptoProvider<L> + Clone + Copy
     > SimpleOTSender<T, D, L, S>
 {
     pub async fn new<R>(mut conn: T, mut hasher: D, crypt: S, mut rng: R) -> Fallible<Self>
@@ -96,7 +96,7 @@ S: SymmetricCryptoProvider<L>
         // TODO: make this idiomatic, compute_keys, is copy ok here?
         for (key, value) in keys.into_iter().zip(values) {
             let mut buf: Vec<u8> = value.to_vec();
-            buf = await!(self.crypt.encrypt(&key, buf))?;
+            buf = await!(self.crypt.encrypt(key, buf))?;
             await!(write_data(&mut self.conn, &buf))?;
         }
         Ok(())
@@ -109,7 +109,7 @@ where
     R: RngCore + CryptoRng,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
-    S: SymmetricCryptoProvider<L>,
+    S: SymmetricCryptoProvider<L> + Clone + Copy,
 {
     pub conn: T,
     hasher: D,
@@ -123,7 +123,7 @@ impl<
     R: RngCore + CryptoRng,
     D: Digest<OutputSize = L> + Clone,
     L: ArrayLength<u8>,
-    S: SymmetricCryptoProvider<L>,
+    S: SymmetricCryptoProvider<L> + Clone + Copy,
     > SimpleOTReceiver<T, R, D, L, S>
 {
     pub async fn new(mut conn: T, mut hasher: D, crypt: S, rng: R) -> Fallible<Self> {
@@ -167,7 +167,7 @@ impl<
         for _ in 0..n {
             buffers.push(await!(read_data(&mut self.conn))?);
         }
-        let buf = await!(self.crypt.decrypt(&key, buffers.remove(index)))?;
+        let buf = await!(self.crypt.decrypt(key, buffers.remove(index)))?;
         Ok(buf)
     }
 }
