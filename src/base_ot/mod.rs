@@ -5,7 +5,7 @@
 //! to compose these with extended OT.
 // use failure::{Error, Fallible};
 
-pub mod simpleot;
+pub mod simple_ot;
 
 // /// This is the base trait for sending all base-ot protocols in this library implement.
 // pub trait BaseOTSender {

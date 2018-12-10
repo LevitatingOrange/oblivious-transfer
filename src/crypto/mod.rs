@@ -4,19 +4,21 @@
 //! of the `ring` and a wrapper around the Keccak implementation of `tiny-keccak`
 
 use failure::Fallible;
+use futures::future::Future;
 use generic_array::{ArrayLength, GenericArray};
-pub mod aes;
+
 pub mod sha3;
 
-// TODO: is this a good interface? should there maybe be only one trait?
-
-/// Trait for blockciphers to be used in OT
-pub trait SymmetricCrypt<E>
+/// Trait for blockciphers to be used in OT. They return a future so we can be
+/// more flexible (e.g. using the browser's own cryptographic functions which
+/// only work with promises)
+pub trait SymmetricCryptoProvider<E>
 where
     E: ArrayLength<u8>,
 {
-    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Fallible<(Vec<u8>)>;
-    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Fallible<(Vec<u8>)>;
+    type CryptReturn: Future<Output=Fallible<Vec<u8>>>;
+    fn encrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Self::CryptReturn;
+    fn decrypt(&mut self, key: &GenericArray<u8, E>, data: Vec<u8>) -> Self::CryptReturn;
 }
 
 
