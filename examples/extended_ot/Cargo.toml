@@ -1,12 +1,20 @@
 [package]
-name = "oblivious-transfer"
-version = "0.2.0"
+name = "extended_ot"
+version = "0.1.0"
 authors = ["Lennart Vogelsang <dev@vogelsangs.net>"]
-#for now
 publish = false
 edition = "2018"
 
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
 [lib]
+
 crate-type = ["lib"]
 name = "ot"
 path = "src/lib.rs"
@@ -16,18 +24,8 @@ stdweb = {version="0.4.10", features=["futures-support", "experimental_features_
 
 [target.'cfg(not(all(target_arch="wasm32", target_os="unknown")))'.dependencies]
 romio = "0.3.0-alpha.1"
-ring = "0.13.5"
 
 [dependencies]
-# general util
-failure = "0.1.2"
-byteorder = "1"
-bit-vec = "0.5.0"
-itertools = "0.8.0"
-generic-array = "0.12.0"
-# async & io
+oblivious-transfer = {path = "../../"}
 futures-preview = "0.3.0-alpha.10"
-# crypto
-curve25519-dalek = {version = "0.21", features = ["avx2_backend", "std"], default-features = false}
-tiny-keccak = "1.4.2"
 rand = "0.6.1"
