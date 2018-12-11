@@ -1,7 +1,6 @@
 #![feature(async_await, await_macro, futures_api)]
 use failure::Fallible;
 
-use std::io;
 use futures::prelude::*;
 use futures::executor::{self, ThreadPool};
 use futures::task::{SpawnExt};
@@ -17,6 +16,8 @@ use std::env::args;
 use stdweb::*;
 use stdweb::web::TypedArray;
 use stdweb::unstable::TryInto;
+use stdweb::web::WebSocket;
+use stdweb::PromiseFuture;
 
 use rand::{Rng, ChaChaRng, FromEntropy};
 use rand::SeedableRng;
@@ -48,32 +49,31 @@ async fn run(receive: bool) -> Fallible<()> {
 
         let random_index = rng.gen_range(0, N);
 
-        let stream = await!(WebSocket::new_with_protocols("ws://127.0.0.1:8080", &["ot"]).into_future());
-
-        // let stream = await!(TcpStream::connect(&"127.0.0.1:8080".parse().unwrap()))?;
-        // let mut receiver = await!(SimpleOTReceiver::new(stream, hasher, crypto_provider, rng))?;
-        // let rec_val = await!(receiver.receive(random_index, N))?;
-        // println!("Received value \"{}\" with index {}", String::from_utf8(rec_val)?,random_index);
+        let stream = await!(WasmWebSocket::open(WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])?));
+        let mut receiver = await!(SimpleOTReceiver::new(stream, hasher, crypto_provider, rng))?;
+        let rec_val = await!(receiver.receive(random_index, N))?;
+        println!("Received value \"{}\" with index {}", String::from_utf8(rec_val)?,random_index);
     } 
-    // else {
-    //     let mut threadpool = ThreadPool::new()?;
+    else {
+        let crypto_provider = AesCryptoProvider::default();
+        let hasher = SHA3_256::default();
+        let mut rng = ChaChaRng::from_entropy();
 
-    //     let listener = TcpListener::bind(&"127.0.0.1:8080".parse().unwrap())?;
-    //     let mut incoming = listener.incoming();
-    //     let crypto_provider = AesCryptoProvider::default();
-    //     let hasher = SHA3_256::default();
-    //     let mut rng = ChaChaRng::from_entropy();
+        let random_strings = generate_random_strings(N, L);
+        println!("Sent values: {:?}", random_strings);
+        let random_byte_vecs: Vec<&[u8]> = random_strings.iter().map(|s|s.as_bytes()).collect();
 
-    //     let random_strings = generate_random_strings(N, L);
-    //     println!("Sent values: {:?}", random_strings);
-    //     let random_byte_vecs: Vec<&[u8]> = random_strings.iter().map(|s|s.as_bytes()).collect();
-
-    //     let mut sender = await!(SimpleOTSender::new(stream, hasher, crypto_provider, rng)).unwrap();
-    //     await!(sender.send(&random_byte_vecs)).unwrap();  
-    // }
+        let stream = await!(WasmWebSocket::open(WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])?));
+        let mut sender = await!(SimpleOTSender::new(stream, hasher, crypto_provider, rng)).unwrap();
+        await!(sender.send(&random_byte_vecs)).unwrap();  
+    }
     Ok(())
 }
 
 fn main() {
+    stdweb::initialize();
+    
+    spawn_local(unwrap_future(run(true).map_err(|e| e.to_string())));
 
+    stdweb::event_loop();
 }

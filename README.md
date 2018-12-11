@@ -11,3 +11,7 @@ To compile:
 
  [2] Y. Ishai, J. Kilian, K. Nissim, und E. Petrank, „Extending Oblivious Transfers Efficiently“, in Advances in Cryptology - CRYPTO 2003, Berlin, Heidelberg, 2003, Bd. 2729, S. 145–161.
 
+Todo:
+[] replace failure with own Error implementation
+[] seamless JS integration
+[] more Oblivious Transfer variants?

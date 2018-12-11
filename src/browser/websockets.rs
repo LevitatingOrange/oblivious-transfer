@@ -108,12 +108,12 @@ pub struct WasmWebSocketOpen {
 }
 
 impl Future for WasmWebSocketOpen {
-    type Output = Arc<Mutex<WasmWebSocket>>;
+    type Output = WasmWebSocketAsync;
     fn poll(self: Pin<&mut Self>, lw: &LocalWaker) ->  Poll<Self::Output> {
         let mut me = self.ws.lock().unwrap();
         if me.open {
             me.waker = None;
-            return Poll::Ready(self.ws.clone());
+            return Poll::Ready(WasmWebSocketAsync {ws : self.ws.clone()});
         } else {
             me.waker = Some(lw.clone());
             return Poll::Pending;
@@ -121,11 +121,11 @@ impl Future for WasmWebSocketOpen {
     }
 }
 
-pub struct WasmWebSocketAsyncRead {
+pub struct WasmWebSocketAsync {
     ws: Arc<Mutex<WasmWebSocket>>,
 }
 
-impl AsyncRead for WasmWebSocketAsyncRead {
+impl AsyncRead for WasmWebSocketAsync {
 
     fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8]) -> Poll<Result<usize, std::io::Error>> {
         let mut ws = self.ws.lock().unwrap();
@@ -151,13 +151,7 @@ impl AsyncRead for WasmWebSocketAsyncRead {
     }
 }
 
-// As webstd websocket returns instantly after send,
-// this is only a wrapper so the interface is consistent for read and write
-pub struct WasmWebSocketAsyncWrite {
-    ws: Arc<Mutex<WasmWebSocket>>,
-}
-
-impl AsyncWrite for WasmWebSocketAsyncWrite {
+impl AsyncWrite for WasmWebSocketAsync {
 
     fn poll_write(&mut self, _: &LocalWaker,  buf: &[u8]) -> Poll<Result<usize, std::io::Error>> {
         if let Ok(ref mut ws) = self.ws.lock() {
