@@ -46,7 +46,7 @@ async fn run(receive: bool) -> Fallible<()> {
                 let hasher = SHA3_256::default();
                 let mut rng = ChaChaRng::from_entropy();
 
-                let random_strings = generate_random_strings(N, L);
+                let random_strings = generate_random_strings(&mut rng, N, L);
                 println!("Sent values: {:?}", random_strings);
                 let random_byte_vecs: Vec<&[u8]> = random_strings.iter().map(|s|s.as_bytes()).collect();
 

@@ -23,8 +23,7 @@ pub async fn write_data<'a, T: AsyncWrite + AsyncWriteExt>(conn: &'a mut T, data
     Ok(())
 }
 
-pub fn generate_random_strings(n: usize, l: usize) -> Vec<String> {
-    let mut rng = thread_rng();
+pub fn generate_random_strings<R: Rng>(rng: &mut R, n: usize, l: usize) -> Vec<String> {
     let mut values = Vec::with_capacity(n);
     for _ in 0..n {
         let s: String = rng.sample_iter(&Alphanumeric).take(l).collect();

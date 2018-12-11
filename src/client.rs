@@ -57,15 +57,15 @@ async fn run(receive: bool) -> Fallible<()> {
     else {
         let crypto_provider = AesCryptoProvider::default();
         let hasher = SHA3_256::default();
-        let mut rng = ChaChaRng::from_entropy();
+        let mut rng = create_rng();
 
-        let random_strings = generate_random_strings(N, L);
+        let random_strings = generate_random_strings(&mut rng, N, L);
         println!("Sent values: {:?}", random_strings);
         let random_byte_vecs: Vec<&[u8]> = random_strings.iter().map(|s|s.as_bytes()).collect();
 
         let stream = await!(WasmWebSocket::open(WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])?));
-        let mut sender = await!(SimpleOTSender::new(stream, hasher, crypto_provider, rng)).unwrap();
-        await!(sender.send(&random_byte_vecs)).unwrap();  
+        let mut sender = await!(SimpleOTSender::new(stream, hasher, crypto_provider, rng))?;
+        await!(sender.send(&random_byte_vecs))?;  
     }
     Ok(())
 }
@@ -73,7 +73,9 @@ async fn run(receive: bool) -> Fallible<()> {
 fn main() {
     stdweb::initialize();
     
-    spawn_local(unwrap_future(run(true).map_err(|e| e.to_string())));
+    // Failure's Error does not implement JsSerialize so we convert it to a string here.
+    // Failure will eventually be replaced with a custom error type for this crate.
+    spawn_local(unwrap_future(run(false).map_err(|e| e.to_string())));
 
     stdweb::event_loop();
 }
