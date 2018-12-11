@@ -1,6 +1,14 @@
 # Oblivious Transfer
 
+This is still *WIP*
+
 This library implements the semi-honest SimpleOT [1] and OT Extension [2].
+
+Current limitations: 
+* I have not found/implemented a websocket library for romio and tokio is not fully compatible
+with the new futures. For this reason browser clients can't talk with native servers. This will be fixed in the future.
+* The beaver triple example is not there yet. It will be ported to the new version
+* No tests in this new version
 
 To compile:
 * if you want to use the browser version, install `cargo-web` and run `cargo web run` or `cargo web build`
