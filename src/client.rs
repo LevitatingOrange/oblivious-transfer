@@ -25,7 +25,7 @@ use rand::SeedableRng;
 
 fn now() -> f64 {
     let mus: f64 = js!( return performance.now(); ).try_into().unwrap();
-    mus / 1000_f64
+    mus 
 }
 fn create_rng() -> ChaChaRng {
     let seed: TypedArray<u8> = js!{
@@ -39,16 +39,25 @@ fn create_rng() -> ChaChaRng {
     ChaChaRng::from_seed(seed_arr)
 }
 
+fn median(mut v: Vec<f64>) -> f64 {
+    v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    if (v.len() % 2 != 0) {
+        v[v.len() / 2]
+    } else {
+        ((v[v.len() / 2] + v[v.len() / 2 + 1]) / 2f64)
+    }
+}
+
 async fn run(value_count: usize) -> Fallible<()> {
     const SECURITY_PARAM: usize = 16;
     const VALUE_LENGTH: usize = 64;
-    const NUM_EXPERIMENTS: usize = 100;
+    const NUM_EXPERIMENTS: usize = 1;
 
-    let mut send_results = Vec::with_capacity(NUM_EXPERIMENTS);
-    let mut receive_results = Vec::with_capacity(NUM_EXPERIMENTS);
+    // let mut send_results = Vec::with_capacity(NUM_EXPERIMENTS);
+    // let mut receive_results = Vec::with_capacity(NUM_EXPERIMENTS);
 
     for i in 0..NUM_EXPERIMENTS {
-
+        console!(log, format!("{}", i));
         let stream = await!(WasmWebSocket::open(WebSocket::new_with_protocols("ws://127.0.0.1:3012", &["ot"])?));
 
         let mut rng = ChaChaRng::from_seed([0u8; 32]);
@@ -67,9 +76,10 @@ async fn run(value_count: usize) -> Fallible<()> {
             rng.clone(),
             SECURITY_PARAM,
         ))?;
-        let result = await!(ot_ext_recv.receive(choice_bits))?;
 
-        receive_results.push(now() - before);
+        let result = await!(ot_ext_recv.receive(choice_bits))?;
+        //receive_results.push(now() - before);
+        console!(log, format!("Receive: {}", now() - before));
 
         let values: Vec<(Vec<u8>, Vec<u8>)> = values
             .into_iter()
@@ -89,8 +99,11 @@ async fn run(value_count: usize) -> Fallible<()> {
 
         await!(ot_ext_send.send(values))?;
 
-        send_results.push(now() - before);
+        //send_results.push(now() - before);
+        console!(log, format!("Send: {}", now() - before));
     }
+    // println!("Recv median: {}", median(receive_results));
+    // println!("Send median: {}", median(send_results));
     Ok(())
 }
 
@@ -99,7 +112,7 @@ fn main() {
     
     // Failure's Error does not implement JsSerialize so we convert it to a string here.
     // Failure will eventually be replaced with a custom error type for this crate.
-    spawn_local(unwrap_future(run(10).map_err(|e| e.to_string())));
+    spawn_local(unwrap_future(run(100000).map_err(|e| e.to_string())));
 
     stdweb::event_loop();
 }
