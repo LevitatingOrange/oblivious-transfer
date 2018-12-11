@@ -1,6 +1,6 @@
 use crate::crypto::SymmetricCryptoProvider;
 use failure::{Fallible};
-use futures::future::{ready, Ready};
+use futures::future::{ready};
 use futures::prelude::*;
 use generic_array::{typenum::U32, GenericArray};
 use ring::aead::*;
