@@ -2,6 +2,7 @@
 #![recursion_limit="128"]
 
 pub mod base_ot;
+pub mod extended_ot;
 pub mod crypto;
 pub mod util;
 

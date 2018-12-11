@@ -12,6 +12,8 @@ use futures::prelude::*;
 use std::pin::Pin;
 use std::io::ErrorKind;
 
+use stdweb::*;
+
 macro_rules! enclose {
     ( ($( $x:ident ),*) $y:expr ) => {
         {
@@ -144,6 +146,8 @@ impl AsyncRead for WasmWebSocketAsync {
                 return Poll::Ready(Ok(buf.len()))
             }
         } else {
+            // TODO this should not be an error "OTHER", instead parse the error got
+            console!(log, format!("{}", ws.msg_buf.as_ref().err().unwrap()));
             return Poll::Ready(Err(ErrorKind::Other.into()));
         }
         ws.waker = Some(lw.clone());
@@ -161,7 +165,7 @@ impl AsyncWrite for WasmWebSocketAsync {
                 .map_err(|_| ErrorKind::ConnectionReset.into())
                 .map_ok(|_| buf.len())
         } else {
-            Poll::Ready(Err(ErrorKind::Other.into()))
+            Poll::Ready(Err(ErrorKind::InvalidInput.into()))
         }
     }
 

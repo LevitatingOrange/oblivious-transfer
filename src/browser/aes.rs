@@ -85,7 +85,9 @@ impl SymmetricCryptoProvider<U32> for AesCryptoProvider {
     fn encrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>> {
         self.encrypt_inner(key, data).map_ok(|arr| {
             let tarr: TypedArray<u8> = TypedArray::from(arr);
-            tarr.to_vec()
+            let v = tarr.to_vec();
+            console!(log, format!("{:?}", v));
+            v
         }).map_err(|e| Error::from(e)).boxed()
     }
     fn decrypt(self, key: GenericArray<u8, U32>, data: Vec<u8>) -> Pin<Box<Future<Output = Fallible<Vec<u8>>> + Send>> {
